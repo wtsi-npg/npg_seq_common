@@ -1,4 +1,8 @@
 LIST OF CHANGES
+
+  - add perl script filter_header.pl to bin directory. This file is
+    used by P4's bam to cram new template. 
+  
 release 50.8
   - replace bamcheck file by 2x filtered samtools stats files
 
