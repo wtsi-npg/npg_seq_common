@@ -1,0 +1,252 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use autodie;
+use Getopt::Long qw(GetOptions);
+use Pod::Usage qw(pod2usage);
+use FindBin qw($Bin);
+use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
+use st::api::lims;
+use npg_tracking::glossary::rpt;
+
+
+our $VERSION = '0';
+
+
+
+my ($rpt_key, $help);
+
+pod2usage(2) if (!@ARGV);
+
+GetOptions("rpt=s" => \$rpt_key,
+           "help"  => \$help) || pod2usage(2);
+
+pod2usage(1) if $help;
+
+
+
+my ($lims, $sample, $library, $study, $af);
+my $rpt = npg_tracking::glossary::rpt->inflate_rpt($rpt_key);
+my $run = $rpt->{'id_run'};
+my $pos = $rpt->{'position'};
+my $tag = $rpt->{'tag_index'};
+
+
+
+if ($pos =~ /^(\d)(_(\w+))$/mxs){
+    ($pos, $af) = ($1, $3);
+}
+
+if (defined $tag && $tag =~ /^(\d+)(_(\w+))$/mxs) {
+    ($tag, $af) = ($1, $3);
+}
+
+
+
+if (defined $run && defined $pos && defined $tag) {
+    if ($tag == 0) {
+        $lims = st::api::lims->new(id_run => $run, position => $pos);
+        ($sample, $library, $study) = _get_limsm($lims);
+    } else {
+        $lims = st::api::lims->new(id_run => $run, position => $pos, tag_index => $tag);
+        ($sample, $library, $study) = _get_limsi($lims);
+    }
+} elsif(defined $run && defined $pos) {
+        $lims = st::api::lims->new(id_run => $run, position => $pos );
+        ($sample, $library, $study) = _get_limsi($lims);
+}
+
+
+
+# Process header stream
+while (<>) {
+    chomp;
+    if(/^\@RG/){
+        my @l = split(/\t/);
+        my $i;
+        my ($sm, $lb, $ds);
+        for($i = 0; $i < @l; $i++){
+            if($l[$i] =~ /^SM:(.*)$/xms){
+                $sm = $1;
+                $l[$i] = q[SM:] . $sample;
+                _compare_field(q[SM],$sm, $sample, $rpt_key)
+            }elsif($l[$i] =~ /^LB:(.*)$/xms){
+                $lb = $1;
+                $l[$i] = q[LB:] . $library;
+                _compare_field(q[LB], $lb, $library, $rpt_key)
+            }elsif($l[$i] =~ /^DS:(.*)$/xms){
+                $ds = $1;
+                $l[$i] = q[DS:] . $study;
+                _compare_field(q[DS], $ds, $study, $rpt_key)
+            }
+        }
+        print join(qq[\t], @l) ."\n";
+    }else{
+        print "$_\n";
+    }
+}
+
+
+
+#--------------------------------#
+# Return multiple LIMS values as
+# a concatenated list.
+#--------------------------------#
+sub _get_limsm {
+    my ($lims) = @_;
+    my(@samples,@studies,%s,);
+    foreach my $plex ($lims->children) {
+        next if $plex->is_phix_spike;
+        my ($sample_name,$library_id,$study) = _get_limsi($plex);
+        push @samples, $sample_name;
+        push @studies, $study if ! defined $s{$study};
+        $s{$study}++;
+    }
+    my $sample_list = join ',', @samples;
+    my $study_list  = join ',', @studies;
+    return($sample_list, 'unknown', q[Study ]. $study_list);
+}
+
+
+
+#--------------------------------#
+# Return individual LIMS values.
+#--------------------------------#
+sub _get_limsi {
+    my ($lims) = @_;
+    my $sample_name       = _check_field($lims->sample_publishable_name());
+    my $library_id        = _check_field($lims->library_id());
+    my $study_name        = _check_field($lims->study_publishable_name());
+    my $study_description = _check_field($lims->study_description());
+    if($lims->is_phix_spike){
+        $study_description = 'SPIKED_CONTROL'
+    }
+    return($sample_name, $library_id, $study_name. q[: ].$study_description);
+}
+
+
+
+#--------------------------------#
+# Remove '\t' and '\n' characters
+# contained in LIMS information.
+#--------------------------------#
+sub _check_field {
+    my ($field_value) = @_;
+    $field_value =~ s/\n/\ /gmxs;
+    $field_value =~ s/\t/\ /gmxs;
+    return $field_value;
+}
+
+
+
+#--------------------------------#
+# Compare the value obtained from
+# the LIMS vs the value of SM, LB
+# and DS present in the header
+# and prints a message if they
+# are different.
+#--------------------------------#
+sub _compare_field {
+    my ($field, $hdr_val, $lims_val, $rpt) = @_;
+    my $shorter_studydesc;
+    if($hdr_val ne $lims_val){
+        # Avoid really long study descriptions in warning message,
+        if ($field eq "DS") {
+            $hdr_val = substr $hdr_val, 0, 70;
+            $hdr_val .= q[... [TRUNCATED]];
+            $lims_val = substr $lims_val, 0, 70;
+            $lims_val .= q[... [TRUNCATED]];
+        }
+        my $msg = qq[[WARNING] [$rpt]: Value of field $field has changed!: ];
+        $msg .= $field. qq[_SAM: '$hdr_val', ];
+        $msg .= $field. qq[_LIMS: '$lims_val'.];
+        warn qq[$msg\n];
+    }
+}
+
+__END__
+
+=head1 NAME
+
+npg_fix_sam_header
+
+=head1 VERSION
+
+=head1 SYNOPSIS
+
+npg_fix_sam_header [options] <SAM-header>
+
+=head1 CONFIGURATION
+
+=head1 DESCRIPTION
+
+Useful for re-headering SAM files: reads in the header and prints out
+an updated version of the SM, LB and SM fields in the @RG section.
+
+Uses the value of the -rpt argument to retrieve its LIMS data and
+warns if it is different from the current value of the field (STDERR).
+Value of rpt has to be: run:position[_afsplit[:tag]|[:tag[_afsplit]]].
+
+=head1 OPTIONS
+
+=over
+
+=item -rpt 12345:1[_afsplit]
+
+=item -rpt 12345:1:1[_afsplit]
+
+=item -help
+
+=back
+
+=head1 DEPENDENCIES
+
+=over
+
+=item strict
+
+=item warnings
+
+=item autodie
+
+=item Getopt::Long
+
+=item Pod::Usage
+
+=item FindBin
+
+=item st::api::lims
+
+=item npg_tracking::glossary::rpt
+
+=back
+
+=head1 BUGS AND LIMITATIONS
+
+Little sanity checks for rpt values, it is mostly up to the user to ensure their validity.
+
+=head1 AUTHOR
+
+Ruben Bautista E<lt>rb11@sanger.ac.ukE<gt>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2015 GRL
+
+This file is part of NPG.
+
+NPG is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut
