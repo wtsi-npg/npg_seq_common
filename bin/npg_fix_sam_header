@@ -34,10 +34,11 @@ my $tag = $rpt->{'tag_index'};
 
 
 
+# Get alignment filter value from position...
 if ($pos =~ /^(\d)(_(\w+))$/mxs){
     ($pos, $af) = ($1, $3);
 }
-
+#... or tag
 if (defined $tag && $tag =~ /^(\d+)(_(\w+))$/mxs) {
     ($tag, $af) = ($1, $3);
 }
@@ -224,7 +225,8 @@ Value of rpt has to be: run:position[_afsplit[:tag]|[:tag[_afsplit]]].
 
 =head1 BUGS AND LIMITATIONS
 
-Little sanity checks for rpt values, it is mostly up to the user to ensure their validity.
+Basic sanity checks for rpt values provided by npg_tracking::glossary::rpt
+only, it is mostly up to the user to ensure their full validity.
 
 =head1 AUTHOR
 
