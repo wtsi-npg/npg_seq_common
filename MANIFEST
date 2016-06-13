@@ -19,9 +19,9 @@ bin/base_count_maker
 bin/FastaFormat
 bin/generate_cached_fastq
 bin/npg_fastq2fasta
+bin/npg_fix_sam_header
 bin/npg_mail_cron_output
 bin/Ref_Maker
-bin/filter_header.pl
 src/gcn_maker.d
 t/00-critic.t
 t/00-distribution.t
