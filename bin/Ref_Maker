@@ -1,44 +1,24 @@
 #!/usr/bin/env perl
 #########
-# Author:        John O'Brien
 # Created:       2008-06-17
 
-##no critic(ProhibitMultiplePackages)
-
-package npg_common::RefMaker;
-use Moose;
-with 'npg_common::roles::software_location';
-has 'csd_jar' => (
-            is            => 'ro',
-            isa           => 'NpgCommonResolvedPathJarFile',
-            default       => 'CreateSequenceDictionary.jar',
-            coerce        => 1,
-);
-has 'bowtie2-build' => (
-            is            => 'ro',
-            isa           => 'NpgCommonResolvedPathExecutable',
-            default       => 'bowtie2-build',
-            coerce        => 1,
-);
-no Moose;
-
-package ref_maker;
 use strict;
 use warnings;
 use FindBin qw($Bin);
 use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
 use Carp;
-use Cwd 'abs_path';
+use Cwd qw(abs_path);
 use English qw(-no_match_vars);
 use File::Basename;
 use File::chdir;
 use File::Copy;
-use File::Path qw( make_path remove_tree );
+use File::Path qw(make_path remove_tree);
 use File::Spec::Functions qw(catfile);
 use Getopt::Long;
 use IPC::Open3;
 use JSON;
 use List::Util qw(sum);
+use Moose::Meta::Class;
 use Perl6::Slurp;
 use POSIX qw(strftime);
 use autodie qw(:all);
@@ -60,149 +40,139 @@ exit $status;
 
 sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
 
-my $fasta_regex = qr{[.]f(?:ast|n)?a}imsx;
-my ( %arguments, %version, %convert_command );
+    my %build = (
+        blat      => 0,
+        bowtie    => 0,
+        bowtie2   => 0,
+        bwa       => 0,
+        bwa0_6    => 0,
+        npgqc     => 0,
+        picard    => 0,
+        samtools  => 0,
+        smalt     => 0,
+    );
+    GetOptions( \%build, keys %build ) or croak 'Error in command line arguments';
 
+    my $fasta_regex = qr{[.]f(?:ast|n)?a}imsx;
+    my ( %arguments, %version, %convert_command );
 
-# First make sure we're in the right place.
-croak 'No fasta directory found.' if !-d 'fasta';
+    # First make sure we're in the right place.
+    croak 'No fasta directory found.' if !-d 'fasta';
 
-$working_dir = $CWD;
+    $working_dir = $CWD;
 
+    # There should be one fasta file in the fasta subdirectory.
+    opendir my $dh, 'fasta';
+    @files = grep {m/$fasta_regex\z/imsx} readdir $dh;
+    closedir $dh;
+    croak 'One and only one fasta file expected.' if scalar @files != 1;
 
-# There should be one fasta file in the fasta subdirectory.
-opendir my $dh, 'fasta';
-@files = grep {m/$fasta_regex\z/imsx} readdir $dh;
-closedir $dh;
-croak 'One and only one fasta file expected.' if scalar @files != 1;
+    print {*STDOUT} catfile( $CWD, 'fasta', $files[0] ), "\n" or carp $OS_ERROR;
+    $ref_size = -s "fasta/$files[0]";
 
-print {*STDOUT} catfile( $CWD, 'fasta', $files[0] ), "\n" or carp $OS_ERROR;
-$ref_size = -s "fasta/$files[0]";
-
-
-my %build = (
-    bowtie    => 0,
-    bowtie2   => 0,
-    bwa       => 0,
-    bwa0_6    => 0,
-    npgqc     => 0,
-    picard    => 0,
-    samtools  => 0,
-    smalt     => 0,
-);
-GetOptions( \%build, keys %build );
-
-# If no arguments were supplied build all index files.
-if ( sum( values %build ) == 0 ) {
-    foreach my $k ( keys %build ) { $build{$k} = 1; }
-}
-
-# bwa uses a different algorithm depending on the size of the reference.
-# For files between 10MB and 2GB either can be used.
-my $bwa_algorithm = ( $ref_size > $BWA_ALGORITHM_CUTOFF ) ? 'bwtsw' : 'is';
-
-
-# Build the conversion arguments.
-$arguments{bowtie}   = "-build -f -q $files[0] $files[0]";
-$arguments{bowtie2}  = "-build $files[0] $files[0]";
-$arguments{bwa}      = " index -p $files[0] -a $bwa_algorithm $files[0]";
-$arguments{bwa0_6}   = " index -p $files[0] -a $bwa_algorithm $files[0]";
-$arguments{maq}      = " fasta2bfa $files[0] $files[0].bfa";
-$arguments{samtools} = " faidx $files[0]";
-
-my @failed; # record any failures
-if ($build{npgqc}) {
-    # Make a json file for the npg_qc::autoqc::checks::gc_fraction check.
-    my $result = gc_frac();
-    if (!$result) { push @failed, 'gc_frac'; }
-    chdir $working_dir;
-}
-if ($build{picard}) {
-    # Make a picard .dict file 
-    my $result = picard();
-    if (!$result) { push @failed, 'picard'; }
-    chdir $working_dir;
-}
-if ($build{smalt}) {
-    # Make the smalt index files.
-    my $result = smalt();
-    if (!$result) { push @failed, 'smalt'; }
-    chdir $working_dir;
-}
-
-my $rm = npg_common::RefMaker->new();
-
-foreach my $aligner (@ALIGNERS) {
-    next if !$build{$aligner};
-
-    clean_slate($aligner);
-    my $executable = $aligner;
-
-    my $command = $aligner eq 'bowtie2' ? 'bowtie2-build' : $aligner. '_cmd';
-    $version{$aligner} = $rm->current_version($rm->$command);
-    if ( !$version{$aligner} ) {
-        carp "Version string not found for $aligner, continuing without";
+    # If no arguments were supplied build all index files.
+    if ( sum( values %build ) == 0 ) {
+        foreach my $k ( keys %build ) { $build{$k} = 1; }
     }
 
-    # Make a subdirectory to hold the output.
-    ( -d $aligner ) || ( mkdir $aligner, $DIR_PERM );
-    copy( "fasta/$files[0]", "$aligner/$files[0]" );    # Can't rely on links.
-    $CWD = $aligner;
+    # bwa uses a different algorithm depending on the size of the reference.
+    # For files between 10MB and 2GB either can be used.
+    my $bwa_algorithm = ( $ref_size > $BWA_ALGORITHM_CUTOFF ) ? 'bwtsw' : 'is';
 
-    # Do the conversions.
-    $convert_command{$aligner} = $executable . $arguments{$aligner};
-    print {*STDERR} "\n$convert_command{$aligner}\n\n" || carp;
-    log_timestamp( 'start', $aligner );
-    my $success = eval { system $convert_command{$aligner}; 1; };
-    if (!$success) { push @failed, $aligner; }
 
-    chdir $working_dir;
-    my $to_unlink = "$aligner/$files[0]";
-    if (-e $to_unlink) {
-        unlink $to_unlink;
+    # Build the conversion arguments.
+    $arguments{'bowtie'}   = "-build -f -q $files[0] $files[0]";
+    $arguments{'bowtie2'}  = "-build $files[0] $files[0]";
+    $arguments{'bwa'}      = " index -p $files[0] -a $bwa_algorithm $files[0]";
+    $arguments{'bwa0_6'}   = " index -p $files[0] -a $bwa_algorithm $files[0]";
+    $arguments{'maq'}      = " fasta2bfa $files[0] $files[0].bfa";
+    $arguments{'samtools'} = " faidx $files[0]";
+
+    my @failed; # record any failures
+    my %subs = ();
+    $subs{'blat'}   = \&blat;
+    $subs{'smalt'}  = \&smalt;
+    $subs{'picard'} = \&picard;
+    $subs{'npgqc'}  = \&gc_frac;
+
+    foreach my $tool (keys %subs) {
+        if ($build{$tool}) {
+            if (!$subs{$tool}->()) { push @failed, $tool; }
+            chdir $working_dir;
+        }
     }
-    #tophat expects to find reference file next to bowtie2 indices
-    #and the reference extension is expected to be .fa
-    if ($aligner eq 'bowtie2') {
-      my $target = "fasta/$files[0]";
-      my $link = "$aligner/$files[0]" . q[.fa];
-      carp "bowtie2: soft-linking $link to $target";
-      symlink $target, $link;
+
+    my $rm = _get_rm();
+
+    foreach my $aligner (@ALIGNERS) {
+        next if !$build{$aligner};
+
+        clean_slate($aligner); # Makes a subdirectory to hold the output.
+        my $executable = $aligner;
+
+        my $command = $aligner eq 'bowtie2' ? 'bowtie2-build' : $aligner. '_cmd';
+        $version{$aligner} = $rm->current_version($rm->$command);
+        if ( !$version{$aligner} ) {
+            carp "Version string not found for $aligner, continuing without";
+        }
+
+        copy( "fasta/$files[0]", "$aligner/$files[0]" );    # Can't rely on links.
+        $CWD = $aligner;
+
+        # Do the conversions.
+        $convert_command{$aligner} = $executable . $arguments{$aligner};
+        print {*STDERR} "\n$convert_command{$aligner}\n\n" || carp;
+        log_timestamp( 'start', $aligner );
+        my $success = eval { system $convert_command{$aligner}; 1; };
+        if (!$success) { push @failed, $aligner; }
+
+        chdir $working_dir;
+        my $to_unlink = "$aligner/$files[0]";
+        if (-e $to_unlink) {
+            unlink $to_unlink;
+        }
+
+        #tophat expects to find reference file next to bowtie2 indices
+        #and the reference extension is expected to be .fa
+        if ($aligner eq 'bowtie2') {
+            my $target = "../fasta/$files[0]";
+            my $link = "$aligner/$files[0]" . q[.fa];
+            carp "bowtie2: soft-linking $link to $target";
+            symlink $target, $link;
+        }
+
+        log_timestamp( $success ? 'stop' : 'abort', $aligner );
     }
-    my $final_message = $success ? 'stop' : 'abort';
-    log_timestamp( $final_message, $aligner );
-}
 
-# samtools requires its index file to be in the same directory as the fasta
-# Check first that the samtools command worked above.
-if ($build{samtools}) {
-    eval {
-        my $source = "samtools/$files[0].fai";
-        my $target = "fasta/$files[0].fai";
-        croak 'samtools .fai file not found' if !-e $source;
+    # samtools requires its index file to be in the same directory as the fasta
+    # Check first that the samtools command worked above.
+    if ($build{'samtools'}) {
+        eval {
+            my $source = "samtools/$files[0].fai";
+            my $target = "fasta/$files[0].fai";
+            croak 'samtools .fai file not found' if !-e $source;
 
-        # This can fail if $target is a broken link.
-        ( -e $target ) && ( unlink $target );
+            # This can fail if $target is a broken link.
+            ( -e $target ) && ( unlink $target );
 
-        symlink qq{../$source}, $target;
-        1;
+            symlink qq{../$source}, $target;
+            1;
+        } or do {
+            carp "Error symlinking fai file: $EVAL_ERROR $SKIP_STRING";
+        };
     }
-    or do {
-        carp "Error symlinking fai file: $EVAL_ERROR $SKIP_STRING";
-    };
-}
 
-if (@failed) {
-    my $message = 'WARNING: Task(s) failed, see Ref_Maker output for '.
-        'details: '.join(', ', @failed)."\n";
-    print {*STDERR} $message or carp $OS_ERROR;
-    return 1;
-} else {
-    return 0;
-}
+    if (@failed) {
+        my $message = 'WARNING: Task(s) failed, see Ref_Maker output for '.
+            'details: '.join(', ', @failed)."\n";
+        print {*STDERR} $message or carp $OS_ERROR;
+        return 1;
+    } else {
+        return 0;
+    }
 } ################### end of the main part #############################
 
-sub gc_frac {
+sub gc_frac{
 
     my $gcfr_command = File::Spec->catfile( $Bin, 'base_count_maker' );
     log_timestamp( 'start', 'gc_frac' );
@@ -217,10 +187,9 @@ sub gc_frac {
     return 1;
 }
 
-
 sub picard {
 
-    my $dict_jar = npg_common::RefMaker->new()->csd_jar();
+    my $dict_jar = _get_rm()->csd_jar();
 
     clean_slate('picard');
 
@@ -303,9 +272,21 @@ sub smalt {
     return 1;
 }
 
+sub blat {
+    clean_slate('blat');
+
+    my $blat_command = qq{faToTwoBit -noMask fasta/$files[0] blat/$files[0].2bit};
+    eval { system $blat_command; 1; }
+    or do {
+        carp "*** blat conversion failed: $EVAL_ERROR $SKIP_STRING";
+        log_timestamp( 'abort', 'blat' );
+        return 0;
+    };
+    log_timestamp( 'stop', 'blat' );
+    return 1;
+}
 
 sub clean_slate {
-
     my ($dirname) = @_;
 
     # Start with a clean slate.
@@ -314,7 +295,6 @@ sub clean_slate {
 
     return;
 }
-
 
 sub log_timestamp {
     my ( $state, $job ) = @_;
@@ -325,8 +305,21 @@ sub log_timestamp {
     return;
 }
 
-
-
+sub _get_rm {
+    my $rm_class = Moose::Meta::Class->create_anon_class(
+        roles => [qw/npg_common::roles::software_location/]);
+    $rm_class->add_attribute('csd_jar'       => (
+            is            => q{ro},
+            isa           => 'NpgCommonResolvedPathJarFile',
+            default       => 'CreateSequenceDictionary.jar',
+            coerce        => 1,));
+    $rm_class->add_attribute('bowtie2-build' => (
+            is            => 'ro',
+            isa           => 'NpgCommonResolvedPathExecutable',
+            default       => 'bowtie2-build',
+	    coerce        => 1,));
+    return $rm_class->new_object();
+}
 
 __END__
 
@@ -396,6 +389,10 @@ Run CreateSequenceDictionary
 
 Create smalt index
 
+=head2 blat
+
+Create blat index
+
 =head2 clean_slate
 
 Delete and previous version/attempt and create a fresh directory.
@@ -450,11 +447,11 @@ Log a timestamp for the start or end (normal or aborted) of an aligner job.
 
 =item List::Util
 
+=item Moose::Meta::Class
+
 =item Perl6::Slurp
 
 =item POSIX
-
-=item autodie
 
 =back
 
@@ -482,11 +479,12 @@ fasta files.
 
 =head1 AUTHOR
 
-John O'Brien, jo3
+John O'Brien
+Marina Gourtovaia
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2010 GRL, by John O'Brien
+Copyright (C) 2016 GRL
 
 This file is part of NPG.
 

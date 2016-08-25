@@ -198,7 +198,7 @@ Run id for the lane to be checked.
 has 'id_run'      => (
                        isa            => 'Int',
                        is             => 'rw',
-                       required       => 0,
+                       required       => 1,
                        documentation  => 'only for metrics json output',
 		      );
 
@@ -209,7 +209,7 @@ Lane number. An integer from 1 to 8 inclusive.
 =cut
 has 'position'    => (isa       => 'Int',
                       is        => 'rw',
-                      required  => 0,
+                      required  => 1,
                       documentation  => 'only for metrics json output',
                      );
 
@@ -1212,17 +1212,13 @@ sub _bam_flagstats_qc {
 
   my $result = {};
   $result->{'sequence_file'} = $self->input_bam;
-  if($self->id_run()){
-    $result->{'id_run'} = $self->id_run;
-  }
-  if($self->position()){
-    $result->{'position'} = $self->position;
-  }
+  $result->{'id_run'}        = $self->id_run;
+  $result->{'position'}      = $self->position;
   if(defined $self->tag_index){
-    $result->{'tag_index'} = $self->tag_index;
+    $result->{'tag_index'}   = $self->tag_index;
   }
   if($self->subset){
-    $result->{'subset'} = $self->subset;
+    $result->{'subset'}      = $self->subset;
   }
 
   my $robj = npg_qc::autoqc::results::bam_flagstats->new($result);

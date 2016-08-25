@@ -8,9 +8,20 @@ use File::Temp qw(tempfile tempdir);
 use File::Which qw[which];
 use Perl6::Slurp;
 use Cwd qw(getcwd abs_path);
+use npg_tracking::data::reference::list;
+
+use npg_qc::autoqc::results::bam_flagstats;
+use Test::MockModule;
+my $mock = Test::MockModule->new('npg_qc::autoqc::results::bam_flagstats');
+$mock->mock(execute  => sub { return 1; });
+$mock->mock(set_info => sub { return 1; });
+$mock->mock(store    => sub { return 1; });
+
+local $ENV{'http_proxy'}='http://wibble.com';
+
 use_ok('npg_common::sequence::BAM_Alignment');
 
-use npg_tracking::data::reference::list;
+
 my $REP_ROOT = $npg_tracking::data::reference::list::REP_ROOT;
 
 my $temp_dir = tempdir( CLEANUP => 1 );
@@ -34,6 +45,8 @@ my $test_classpath = q[t/bin/aligners/picard/current:t/bin/aligners/illumina2bam
                  temp_dir          => $temp_dir,
                  reference         => 'reference.fasta',
                  java_xmx_flag     => $java_memory,
+                 id_run            => 35,
+                 position          => 1
                );
                
   isa_ok( $bam, 'npg_common::sequence::BAM_Alignment', 'object test' );
@@ -137,6 +150,8 @@ my $test_classpath = q[t/bin/aligners/picard/current:t/bin/aligners/illumina2bam
                  samtools_cmd      => 't/bin/aligners/samtools/current/samtools',
                  temp_dir          => $temp_dir,
                  reference         => 'reference.fasta',
+                 id_run            => 35,
+                 position          => 1
                );
 
   is( $bam->bwa_cmd(), join(q[/], getcwd(), q[t/bin/bwa]), 'correct aligner command with absolute path' );
@@ -159,6 +174,8 @@ my $test_classpath = q[t/bin/aligners/picard/current:t/bin/aligners/illumina2bam
                  output_prefix     => 'output',
                  temp_dir          => $temp_dir,
                  bwa_cmd           => 't/bin/aligners/bwa/bwa-0.5.8c/bwa',
+                 id_run            => 35,
+                 position          => 1
               );
                
   isa_ok($bam, 'npg_common::sequence::BAM_Alignment', 'object test');
@@ -201,6 +218,8 @@ my $test_classpath = q[t/bin/aligners/picard/current:t/bin/aligners/illumina2bam
                  bwa_cmd           => 't/bin/aligners/bwa/bwa-0.5.8c/bwa',
                  reference         => 'reference.fasta',
                  human_reference   => 'human_reference.fasta',
+                 id_run            => 35,
+                 position          => 1
                );
                
   isa_ok($bam, 'npg_common::sequence::BAM_Alignment', 'object test');
@@ -244,6 +263,8 @@ SKIP: {
                  human_reference   => 'human_reference.fasta',
                  alignment_metrics_autoqc_command => undef,
                  java_xmx_flag => $java_memory,
+                 id_run        => 35,
+                 position      => 1,
               );
 
       my $bwa_aln_pg_lines = $bam->_bwa_aln_pg_lines();
@@ -283,6 +304,8 @@ SKIP: {
                  reference         => 'reference.fasta',
                  human_reference   => 'human_reference.fasta',
                  alignment_metrics_autoqc_command => undef,
+                 id_run            => 35,
+                 position          => 1,
                );
   
   ok(! $bam->_lims(), 'no id_run given, no lims object');
@@ -395,9 +418,13 @@ local $ENV{NPG_WEBSERVICE_CACHE_DIR} = $cache;
                  input             => 't/data/sequence/6062_1#0.bam',     
                  output_prefix     => 'output/6062_1#',
                  temp_dir          => $temp_dir,
-                 reference       => $human,
+                 reference         => $human,
+                 id_run            => 35,
+                 position          => 1,
                );
-  is( $bam->alignment_metrics_autoqc_command, undef, 'alignment metrics autoqc command not defined since id_run and position not given');
+  is( $bam->alignment_metrics_autoqc_command,
+      'qc --check alignment_filter_metrics --id_run 35 --position 1 --qc_in output --qc_out output',
+      'alignment metrics autoqc command');
 }
 
 {
@@ -514,6 +541,8 @@ local $ENV{NPG_WEBSERVICE_CACHE_DIR} = $cache;
                  temp_dir          => $temp_dir,
                  reference         => 'reference.fasta',
                  java_xmx_flag     => '-Xmx3000m',
+                 id_run            => 35,
+                 position          => 1,
                });
 
   my $illumina2bam_path = abs_path( q[t/bin/aligners/illumina2bam/current] );

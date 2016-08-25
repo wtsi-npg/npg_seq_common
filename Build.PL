@@ -41,7 +41,7 @@ my $requires = {
                 'POSIX'                           => '1.09',
                 'Readonly'                        => '1.03',
                 'Readonly::XS'                    => 0,
-                'strict'                          => '1.03',
+                'strict'                          => '1.03', 
                 'warnings'                        => '1.05',
                 'YAML'                            => '0.68',
 
@@ -84,6 +84,7 @@ my $builder =  npg_tracking::util::build->new(
                 'Test::Distribution'              => 0,
                 'Test::Deep'                      => '0.103',
                 'Test::Exception'                 => '0.27',
+                'Test::MockModule'                => 0,
                 'Test::MockObject'                => 0,
                 'Test::More'                      => '0.86',
                 'Test::Pod'                       => 0,

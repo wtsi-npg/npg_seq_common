@@ -1,44 +1,42 @@
 use strict;
 use warnings;
-use Test::More tests => 63;
+use Test::More tests => 65;
 use Cwd qw/abs_path getcwd/;
 use File::Temp qw/tempdir/;
 use File::Slurp;
 use Digest::MD5;
 use JSON;
 
-use npg_tracking::util::build qw/git_tag/;
-
-
 # test the Ref_Maker script by building references for E coli
 # confirm md5 checksum of expected output files
 
 SKIP: {
-  skip 'Third party bioinformatics tools required. Set TOOLS_INSTALLED to true to run.', 63 unless ($ENV{'TOOLS_INSTALLED'});
-my $startDir = getcwd();
-my $fastaMaster = abs_path('t/data/references/E_coli/K12/fasta/E-coli-K12.fa');
-unless (-e $fastaMaster) {
+  skip 'Third party bioinformatics tools required. Set TOOLS_INSTALLED to true to run.',
+    65 unless ($ENV{'TOOLS_INSTALLED'});
+  my $startDir = getcwd();
+  my $fastaMaster = abs_path('t/data/references/E_coli/K12/fasta/E-coli-K12.fa');
+  unless (-e $fastaMaster) {
     die "Cannot find FASTA master file $fastaMaster\n";
-}
-my $tmp = tempdir('Ref_Maker_test_XXXXXX', CLEANUP => 0, DIR => '/tmp' );
-print "Created temporary directory: ".abs_path($tmp)."\n";
-my $tmpFasta = $tmp."/fasta";
-mkdir($tmpFasta);
-system("cp $fastaMaster $tmpFasta");
-local $ENV{'PATH'} = join q[:], join(q[/], $startDir, 'scripts'), $ENV{'PATH'};
+  }
+  my $tmp = tempdir('Ref_Maker_test_XXXXXX', CLEANUP => 1, DIR => '/tmp' );
+  print "Created temporary directory: ".abs_path($tmp)."\n";
+  my $tmpFasta = $tmp."/fasta";
+  mkdir($tmpFasta);
+  system("cp $fastaMaster $tmpFasta");
+  local $ENV{'PATH'} = join q[:], join(q[/], $startDir, 'scripts'), $ENV{'PATH'};
 
-chdir($tmp);
+  chdir($tmp);
 
-is(system("$startDir/bin/Ref_Maker &> Ref_Maker.log"), 0, 'Ref_Maker exit status');
+  is(system("$startDir/bin/Ref_Maker &> Ref_Maker.log"), 0, 'Ref_Maker exit status');
 
-# can't use checksum on Picard .dict, as it contains full path to fasta file
-my $picard = "picard/E-coli-K12.fa.dict";
-ok(-e $picard, "Picard .dict file exists");
+  # can't use checksum on Picard .dict, as it contains full path to fasta file
+  my $picard = "picard/E-coli-K12.fa.dict";
+  ok(-e $picard, "Picard .dict file exists");
 
-ok(-e 'smalt/E-coli-K12.fa.sma', 'Smalt .sma file exists');
+  ok(-e 'smalt/E-coli-K12.fa.sma', 'Smalt .sma file exists');
 
-# now verify md5 checksum for all other files
-my %expectedMD5 = (
+  # now verify md5 checksum for all other files
+  my %expectedMD5 = (
     'bowtie/E-coli-K12.fa.1.ebwt' => '3c990c336037da8dcd5b1e7794c3d9de',
     'bowtie/E-coli-K12.fa.2.ebwt' => 'de2a7524129643b72c0b9c12289c0ec2',
     'bowtie/E-coli-K12.fa.3.ebwt' => 'be250db6550b5e06c6d7c36beeb11707',
@@ -68,23 +66,27 @@ my %expectedMD5 = (
     'fasta/E-coli-K12.fa.fai' => '3bfb02378761ec6fe2b57e7dc99bd2b5',
     'samtools/E-coli-K12.fa.fai' => '3bfb02378761ec6fe2b57e7dc99bd2b5',
     'smalt/E-coli-K12.fa.smi' => 'aa85b6852d707d45b90edf714715ee6b',
-    );
+    'blat/E-coli-K12.fa.2bit' => 'd40176801d2f23f76f7c575843350923',
+  );
 
-ok (-e 'npgqc/E-coli-K12.fa.json', 'json file exists');
+  ok (-e 'npgqc/E-coli-K12.fa.json', 'json file exists');
 
-my $json_hash = {'reference_path'=>'fasta/E-coli-K12.fa','_summary'=>{'ref_length'=>4639675,'counts'=>{'A'=>1142228,'T'=>1140970,'C'=>1179554,'G'=>1176923}}};
-my $json = from_json(read_file('npgqc/E-coli-K12.fa.json'));
-delete $json->{__CLASS__};
-is_deeply($json,$json_hash,'Compare the JSON file');
+  my $json_hash = {
+    'reference_path'=>'fasta/E-coli-K12.fa',
+    '_summary'=>{'ref_length'=>4639675,
+                 'counts'=>{'A'=>1142228,'T'=>1140970,'C'=>1179554,'G'=>1176923}}};
+  my $json = from_json(read_file('npgqc/E-coli-K12.fa.json'));
+  delete $json->{__CLASS__};
+  is_deeply($json,$json_hash,'Compare the JSON file');
 
-chdir($startDir);
-foreach my $path (keys %expectedMD5) {
+  chdir($startDir);
+  foreach my $path (keys %expectedMD5) {
     my $file = join q[/], $tmp, $path;
     ok(-e $file, "file $file exists");
     open my $fh, "<", $file || die "Cannot open $file for reading";
-    is(Digest::MD5->new->addfile($fh)->hexdigest, $expectedMD5{$path}, 
-       "$path MD5 checksum");
+    is(Digest::MD5->new->addfile($fh)->hexdigest, $expectedMD5{$path},
+      "$path MD5 checksum");
     close $fh;
-}
+  }
 } # end SKIP no tool installed
 1;

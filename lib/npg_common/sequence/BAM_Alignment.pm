@@ -93,35 +93,19 @@ has 'input'           => (isa           => q{Str},
                           required      => 1,
                           documentation => q{input bam file, probably with phix alignment},
                          );
-
-=head2 id_run	 
-	  	 
-optional field id_run to get lims information
-	  	 
-=cut
-has '+id_run'    =>  (required        => 0);
-
-########
-# is_paired_read of the npg_tracking::illumina::run::long_info role
-# is modified to return 0 if id_run is not set to conform with
-# the previous (npg::api::run dependant) implementation of this accessor
-#
 around 'is_paired_read' => sub {
   my $orig = shift;
   my $self = shift;
 
-  if (!$self->has_is_paired_read && !defined $self->id_run) {
+  if (!$self->has_is_paired_read) {
     return;
   }
   return $self->$orig();
 };
 
-=head2 position	 
-	  	 
-optional field position to get lims information
-	  	 
-=cut
-has '+position'  =>  (required        => 0);
+=head2 id_run
+
+=head2 position
 
 =head2 tag_index 	 
 	  	 
@@ -147,22 +131,22 @@ has  '_lims'    =>  ( isa             => 'Maybe[st::api::lims]',
                     );
 sub _build__lims {
     my $self = shift;
-
-    my $st_lims;
-    if( defined $self->id_run() ){
-      eval{
-        $st_lims = st::api::lims->new(id_run    => $self->id_run,
-                                 position  => $self->position,
-                                 tag_index => $self->tag_index,
-                                );
+    my $lims;
+    eval{
+        $lims = st::api::lims->new(id_run    => $self->id_run,
+                                   position  => $self->position,
+                                   tag_index => $self->tag_index,
+                                  );
+        # Creating an object does not necessary mean that LIMs
+        # data are available; getting the data reveals problems.
+        $lims->study_id();
         1;
-      } or do {
-        carp "Failed to create st::api::lims object:\n$EVAL_ERROR";
-      };
-    } else {
-      $self->log( 'id_run has to be set to get LIMS information' );
-    }
-    return $st_lims;
+    } or do {
+        carp "Failed to create st::api::lims object\n$EVAL_ERROR";
+        $lims = undef;
+    };
+
+    return $lims;
 }
 
 =head2 spiked_phix_split
@@ -483,7 +467,7 @@ sub _build_no_alignment {
     return !$self->_lims()->alignments_in_bam;
   }
   return 0; # this means we will try to align at lane level for plexes and tag zero
-            # regardless of teh options set for individual tags
+            # regardless of the options set for individual tags
 }
 
 
@@ -684,10 +668,6 @@ has 'alignment_metrics_autoqc_command' => (isa             => 'Maybe[Str]',
                                           );
 sub _build_alignment_metrics_autoqc_command {
     my $self = shift;
-
-    if (!$self->id_run || !$self->position) {
-        return;
-    }
 
     my @path = splitdir $self->output_prefix;
     pop @path;
@@ -1722,13 +1702,8 @@ sub _generate_markduplicates_cmd {
    if ($reference) {
       $cmd .= q{ --reference } . $reference;
    }
-
-   if($self->id_run()){
-      $cmd .= q{ --id_run } . $self->id_run();
-   }
-   if($self->position()){
-      $cmd .= q{ --position } . $self->position();
-   }
+   $cmd .= q{ --id_run } . $self->id_run();
+   $cmd .= q{ --position } . $self->position();
    if(defined $self->tag_index() ){
       $cmd .= q{ --tag_index } . $self->tag_index();
    }

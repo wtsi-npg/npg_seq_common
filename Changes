@@ -3,6 +3,16 @@ LIST OF CHANGES
   - add perl script npg_fix_sam_header to bin directory. This file is
     used by P4's bam-to-cram template. 
   
+release 50.10
+  - RefMaker: generate blat 2bit genome references
+  - bam_alignment.pl: enforce to have id_run and position defined. It's
+    needed to create an old-style bamflagstats autoqc result object, see
+    https://github.com/wtsi-npg/npg_qc/pull/342.
+
+release 50.9
+  - fix bug that causes the symlink of the .fa file in the bowtie2
+    directory to point to the wrong location
+
 release 50.8
   - replace bamcheck file by 2x filtered samtools stats files
 
