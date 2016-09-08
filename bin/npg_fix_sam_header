@@ -76,8 +76,8 @@ while (<>) {
                 $lb = $1;
                 $l[$i] = q[LB:] . $library;
                 _compare_sam_tag(q[LB], $lb, $library, $rpt_key)
-            }elsif($l[$i] =~ /^DS:(.*)$/xms){
-                $ds = $1;
+            }elsif($l[$i] =~ /^DS:(Study )?(.*)$/xms){
+                $ds = $2;
                 $l[$i] = q[DS:] . $study;
                 _compare_sam_tag(q[DS], $ds, $study, $rpt_key)
             }
