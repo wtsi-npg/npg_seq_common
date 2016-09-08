@@ -69,15 +69,15 @@ while (<>) {
             if($l[$i] =~ /^SM:(.*)$/xms){
                 $sm = $1;
                 $l[$i] = q[SM:] . $sample;
-                _compare_field(q[SM],$sm, $sample, $rpt_key)
+                _compare_sam_tag(q[SM],$sm, $sample, $rpt_key)
             }elsif($l[$i] =~ /^LB:(.*)$/xms){
                 $lb = $1;
                 $l[$i] = q[LB:] . $library;
-                _compare_field(q[LB], $lb, $library, $rpt_key)
+                _compare_sam_tag(q[LB], $lb, $library, $rpt_key)
             }elsif($l[$i] =~ /^DS:(.*)$/xms){
                 $ds = $1;
                 $l[$i] = q[DS:] . $study;
-                _compare_field(q[DS], $ds, $study, $rpt_key)
+                _compare_sam_tag(q[DS], $ds, $study, $rpt_key)
             }
         }
         print join(qq[\t], @l) ."\n";
@@ -112,10 +112,10 @@ sub _get_limsm {
 #--------------------------------#
 sub _get_limsi {
     my ($lims) = @_;
-    my $sample_name       = _check_field($lims->sample_publishable_name());
-    my $library_id        = _check_field($lims->library_id());
-    my $study_name        = _check_field($lims->study_publishable_name());
-    my $study_description = _check_field($lims->study_description());
+    my $sample_name       = _check_sam_tag($lims->sample_publishable_name());
+    my $library_id        = _check_sam_tag($lims->library_id());
+    my $study_name        = _check_sam_tag($lims->study_publishable_name());
+    my $study_description = _check_sam_tag($lims->study_description());
     if($lims->is_phix_spike){
         $study_description = 'SPIKED_CONTROL'
     }
@@ -127,11 +127,11 @@ sub _get_limsi {
 # Remove '\t' and '\n' characters
 # contained in LIMS information.
 #--------------------------------#
-sub _check_field {
-    my ($field_value) = @_;
-    $field_value =~ s/\n/\ /gmxs;
-    $field_value =~ s/\t/\ /gmxs;
-    return $field_value;
+sub _check_sam_tag {
+    my ($tag_value) = @_;
+    $tag_value =~ s/\n/\ /gmxs;
+    $tag_value =~ s/\t/\ /gmxs;
+    return $tag_value;
 }
 
 
@@ -142,12 +142,12 @@ sub _check_field {
 # and prints a message if they
 # are different.
 #--------------------------------#
-sub _compare_field {
-    my ($field, $hdr_val, $lims_val, $rpt) = @_;
+sub _compare_sam_tag {
+    my ($tag, $hdr_val, $lims_val, $rpt) = @_;
     my $shorter_studydesc;
     if($hdr_val ne $lims_val){
         # Avoid really long study descriptions in warning message,
-        if ($field eq "DS") {
+        if ($tag eq "DS") {
             if (length $hdr_val > $MAX_DS_LENGTH) {
                 $hdr_val = substr $hdr_val, 0, $MAX_DS_LENGTH;
                 $hdr_val .= q[... [TRUNCATED]];
@@ -157,9 +157,9 @@ sub _compare_field {
                 $lims_val .= q[... [TRUNCATED]];
             }
         }
-        my $msg = qq[[WARNING] [$rpt]: Value of tag $field has changed!: ];
-        $msg .= $field. qq[_SAM: '$hdr_val', ];
-        $msg .= $field. qq[_LIMS: '$lims_val'.];
+        my $msg = qq[[WARNING] [$rpt]: Value of tag $tag has changed!: ];
+        $msg .= $tag. qq[_SAM: '$hdr_val', ];
+        $msg .= $tag. qq[_LIMS: '$lims_val'.];
         warn qq[$msg\n];
     }
 }
