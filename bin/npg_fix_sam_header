@@ -10,15 +10,17 @@ use FindBin qw($Bin);
 use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
 use st::api::lims;
 use npg_tracking::glossary::rpt;
+use Log::Log4perl qw(:easy);
 
 our $VERSION = '0';
 
 Readonly::Scalar my $LIMS_DRIVER_TYPE => 'ml_warehouse_fc_cache';
 Readonly::Scalar my $MAX_DS_LENGTH    => 500;
+Log::Log4perl->easy_init($INFO);
 
 my ($rpt_key, $help);
 my $ldt = $LIMS_DRIVER_TYPE;
-
+my $logger = get_logger();
 
 pod2usage(2) if (!@ARGV);
 GetOptions('rpt=s' => \$rpt_key,
@@ -144,24 +146,19 @@ sub _check_sam_tag {
 #--------------------------------#
 sub _compare_sam_tag {
     my ($tag, $hdr_val, $lims_val, $rpt) = @_;
-    my $shorter_studydesc;
     if($hdr_val ne $lims_val){
-        # Avoid really long study descriptions in warning message,
-        if ($tag eq "DS") {
-            if (length $hdr_val > $MAX_DS_LENGTH) {
-                $hdr_val = substr $hdr_val, 0, $MAX_DS_LENGTH;
-                $hdr_val .= q[... [TRUNCATED]];
-            }
-            if (length $lims_val > $MAX_DS_LENGTH) {
-                $lims_val = substr $lims_val, 0, $MAX_DS_LENGTH;
-                $lims_val .= q[... [TRUNCATED]];
-            }
-        }
-        my $msg = qq[[WARNING] [$rpt]: Value of tag $tag has changed!: ];
-        $msg .= $tag. qq[_SAM: '$hdr_val', ];
-        $msg .= $tag. qq[_LIMS: '$lims_val'.];
-        warn qq[$msg\n];
+        # Avoid very long values in warning message
+        my $new_hdr_val = length $hdr_val > $MAX_DS_LENGTH ? 
+                          (substr $hdr_val, 0, $MAX_DS_LENGTH) . q[... [TRUNCATED]] : 
+                          $hdr_val;
+        my $new_lims_val = length $lims_val > $MAX_DS_LENGTH ?
+                           (substr $lims_val, 0, $MAX_DS_LENGTH) . q[... [TRUNCATED]] :
+                           $lims_val;
+        $logger->warn(qq[[WARNING] [$rpt]: Value of tag $tag has changed:]);
+        $logger->info(qq[[INFO] $tag\_SAM: '$new_hdr_val',]);
+        $logger->info(qq[[INFO] $tag\_LIMS: '$new_lims_val'.]);
     }
+    return;
 }
 
 
@@ -229,6 +226,8 @@ where the default is ml_warehouse_fc_cache.
 =item Pod::Usage
 
 =item FindBin
+
+=item Log::Log4perl
 
 =item st::api::lims
 
