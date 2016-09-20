@@ -1,5 +1,8 @@
 LIST OF CHANGES
 
+  - Travis CI build: pr to master - build against master branches of
+    other NPG packages
+
 release 50.10
   - RefMaker: generate blat 2bit genome references
   - bam_alignment.pl: enforce to have id_run and position defined. It's
