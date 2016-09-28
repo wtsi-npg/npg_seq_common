@@ -1,5 +1,8 @@
 LIST OF CHANGES
 
+  - add perl script npg_fix_sam_header to bin directory. This file is
+    used by P4's bam-to-cram template. 
+  
 release 50.10
   - RefMaker: generate blat 2bit genome references
   - bam_alignment.pl: enforce to have id_run and position defined. It's

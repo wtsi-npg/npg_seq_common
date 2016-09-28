@@ -1,0 +1,293 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use autodie;
+use Readonly;
+use Carp;
+use FindBin qw($Bin);
+use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
+use Getopt::Long qw(GetOptions);
+use Pod::Usage qw(pod2usage);
+use Log::Log4perl qw(:easy);
+use st::api::lims;
+use npg_tracking::glossary::rpt;
+
+our $VERSION = '0';
+
+Readonly::Scalar my $LIMS_DRIVER_TYPE => 'ml_warehouse_fc_cache';
+Readonly::Scalar my $MAX_DS_LENGTH    => 500;
+Readonly::Scalar my $NO_TRUNC         => 0;
+Log::Log4perl->easy_init({level => $INFO, utf8  => 1,});
+
+my ($rpt_key, $help);
+my $ldt = $LIMS_DRIVER_TYPE;
+my $trunc_ds = $NO_TRUNC;
+my $logger = get_logger();
+
+pod2usage(2) if (!@ARGV);
+GetOptions('rpt=s' => \$rpt_key,
+           'lims_driver=s' => \$ldt,
+           'truncate!' => \$trunc_ds,
+           'help'  => \$help) || pod2usage(2);
+pod2usage(1) if $help;
+
+my ($lims, $sample, $library, $study, $af);
+my $rpt = npg_tracking::glossary::rpt->inflate_rpt($rpt_key);
+my $run = $rpt->{'id_run'};
+my $pos = $rpt->{'position'};
+my $tag = $rpt->{'tag_index'};
+
+if (defined $run && defined $pos && defined $tag) {
+    $lims = st::api::lims->new(
+              driver_type => $ldt,
+              id_run      => $run,
+              position    => $pos,
+              tag_index   => $tag,);
+} elsif(defined $run && defined $pos) {
+    $lims = st::api::lims->new(
+              driver_type => $ldt,
+              id_run      => $run,
+              position    => $pos,);
+} else {
+    croak q[Couldn't create LIMS object];
+}
+
+if (defined $tag && $tag == 0) {
+    ($sample, $library, $study) = _get_limsm($lims);
+} else {
+    ($sample, $library, $study) = _get_limsi($lims);
+}
+
+
+#--------------------------------#
+# Process header stream
+#--------------------------------#
+while (<>) {
+    chomp;
+    if(/^\@RG/){
+        my @l = split(/\t/);
+        my $i;
+        my ($sm, $lb, $ds);
+        for($i = 0; $i < @l; $i++){
+            if($l[$i] =~ /^SM:(.*)$/xms){
+                $sm = $1;
+                $l[$i] = q[SM:] . $sample;
+                _compare_info(q[SM],$sm, $sample, $rpt_key)
+            }elsif($l[$i] =~ /^LB:(.*)$/xms){
+                $lb = $1;
+                $l[$i] = q[LB:] . $library;
+                _compare_info(q[LB], $lb, $library, $rpt_key)
+            }elsif($l[$i] =~ /^DS:(.*)$/xms){
+                $ds = $1;
+                $l[$i] = q[DS:] . $study;
+                _compare_info(q[DS], $ds, $study, $rpt_key)
+            }
+        }
+        print join(qq[\t], @l) ."\n";
+    }else{
+        print "$_\n";
+    }
+}
+
+
+#--------------------------------#
+# Return multiple LIMS values as
+# a concatenated list.
+#--------------------------------#
+sub _get_limsm {
+    my ($lims) = @_;
+    my(@samples,@studies,%s);
+    foreach my $plex ($lims->children) {
+        next if $plex->is_phix_spike;
+        my ($sample_name,$library_id,$study) = _get_limsi($plex);
+        push @samples, $sample_name;
+        push @studies, $study if ! defined $s{$study};
+        $s{$study}++;
+    }
+    my $sample_list = join ',', @samples;
+    my $study_list  = join ',', @studies;
+    return($sample_list, 'unknown', q[Study ]. $study_list);
+}
+
+
+#--------------------------------#
+# Return individual LIMS values.
+#--------------------------------#
+sub _get_limsi {
+    my ($lims) = @_;
+    my $sample_name       = _check_lims_info($lims->sample_publishable_name());
+    my $library_id        = _check_lims_info($lims->library_id());
+    my $study_name        = _check_lims_info($lims->study_publishable_name());
+    my $study_description = _check_lims_info($lims->study_description());
+    if($lims->is_phix_spike){
+        $study_description = 'SPIKED_CONTROL'
+    }
+    return($sample_name, $library_id, $study_name. q[: ].$study_description);
+}
+
+
+#--------------------------------#
+# Remove '\t' and '\n' characters
+# contained in LIMS information.
+#--------------------------------#
+sub _check_lims_info {
+    my ($lims_info) = @_;
+    $lims_info =~ s/\n/\ /gmxs;
+    $lims_info =~ s/\t/\ /gmxs;
+    return $lims_info;
+}
+
+
+#--------------------------------#
+# Compare the value obtained from
+# the LIMS vs the value of SM, LB
+# and DS present in the header
+# and prints a message if they
+# are different.
+#--------------------------------#
+sub _compare_info {
+    my ($tag, $hdr_val, $lims_val, $rpt) = @_;
+    my ($new_hdr_val, $new_lims_val);
+    
+    if($hdr_val ne $lims_val){
+        if ($tag eq "DS" && $trunc_ds) {
+            # Avoid very long values in warning message
+            $new_hdr_val = (substr $hdr_val, 0, $MAX_DS_LENGTH) . q[... [TRUNCATED]];
+            $new_lims_val = (substr $lims_val, 0, $MAX_DS_LENGTH) . q[... [TRUNCATED]];
+        } else {
+            $new_hdr_val = $hdr_val;
+            $new_lims_val = $lims_val;
+        }
+        $logger->log($FATAL, qq[[ERROR] [$rpt]: There is a mismatch between tag value and LIMS metadata:]);
+        $logger->log($INFO, qq[[INFO] [$tag tag]: $new_hdr_val]);
+        $logger->log($INFO, qq[[INFO] [ LIMS ]: $new_lims_val]);
+        croak qq[Value of tag $tag desn't match LIMS metadata];
+    }
+    return;
+}
+
+__END__
+
+=head1 NAME
+
+npg_fix_sam_header
+
+=head1 SYNOPSIS
+
+npg_fix_sam_header [options] <SAM-header
+
+=head1 DESCRIPTION
+
+Use for re-headering of SAM files: reads in the header and prints out
+an updated version of the SM, LB and SM tags in the @RG section.
+
+The value of the -rpt argument is used to retrieve the LIMS data that
+corresponds to each tag and print a warning if they are different from
+the current values in the header.
+
+Header is sent to STDOUT, warnings and other messages are sent to STDERR.
+
+Value of rpt has to be: 
+
+=over
+
+-rpt run:position[:tag] 
+
+=back
+
+Specify a driver type to retrieve LIMS data using the option:
+
+=over
+
+-lims_driver=[ml_warehouse_fc_cache|ml_warehouse|ml_warehouse_auto]
+
+=back
+
+Truncate or not (default) the value of DS tag when reporting:
+
+=over
+
+-[no]truncate
+
+=back
+
+=head1 OPTIONS
+
+=head2 Required
+
+=over
+
+=item -rpt 12345:1[:2]
+
+=back
+
+=head2 Optional
+
+=over
+
+=item -lims_driver=value
+
+=item -[no]truncate
+
+=item -help
+
+=back
+
+=head1 DEPENDENCIES
+
+=over
+
+=item strict
+
+=item warnings
+
+=item autodie
+
+=item Readonly
+
+=item Carp
+
+=item FindBin
+
+=item Getopt::Long
+
+=item Pod::Usage
+
+=item Log::Log4perl
+
+=item st::api::lims
+
+=item npg_tracking::glossary::rpt
+
+=back
+
+=head1 BUGS AND LIMITATIONS
+
+Basic sanity checks for rpt values provided by npg_tracking::glossary::rpt
+only, it is mostly up to the user to ensure their full validity.
+
+=head1 AUTHOR
+
+Ruben Bautista E<lt>rb11@sanger.ac.ukE<gt>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2015 GRL
+
+This file is part of NPG.
+
+NPG is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut
