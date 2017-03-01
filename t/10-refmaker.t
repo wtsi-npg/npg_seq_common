@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 82;
+use Test::More tests => 98;
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
 use File::Slurp;
@@ -12,7 +12,7 @@ use JSON;
 
 SKIP: {
   skip 'Third party bioinformatics tools required. Set TOOLS_INSTALLED to true to run.',
-    82 unless ($ENV{'TOOLS_INSTALLED'});
+    98 unless ($ENV{'TOOLS_INSTALLED'});
   my $startDir = getcwd();
   my $fastaMaster = 't/data/references/E_coli/K12/fasta/E-coli-K12.fa';
   unless (-e $fastaMaster) {
@@ -23,7 +23,7 @@ SKIP: {
   my $tmpFasta = $tmp."/fasta";
   mkdir($tmpFasta);
   system("cp $fastaMaster $tmpFasta");
-  local $ENV{'PATH'} = join q[:], join(q[/], $startDir, 'scripts'), $ENV{'PATH'};
+  local $ENV{'PATH'} = join q[:], join(q[/], $startDir, 'bin'), $ENV{'PATH'};
 
   chdir($tmp);
 
@@ -38,6 +38,7 @@ SKIP: {
 
   # now verify md5 checksum for all other files
   my %expectedMD5 = (
+    'blat/E-coli-K12.fa.2bit' => 'd40176801d2f23f76f7c575843350923',
     'bowtie/E-coli-K12.fa.1.ebwt' => '3c990c336037da8dcd5b1e7794c3d9de',
     'bowtie/E-coli-K12.fa.2.ebwt' => 'de2a7524129643b72c0b9c12289c0ec2',
     'bowtie/E-coli-K12.fa.3.ebwt' => 'be250db6550b5e06c6d7c36beeb11707',
@@ -67,6 +68,14 @@ SKIP: {
     'fasta/E-coli-K12.fa.fai' => '3bfb02378761ec6fe2b57e7dc99bd2b5',
     'samtools/E-coli-K12.fa.fai' => '3bfb02378761ec6fe2b57e7dc99bd2b5',
     'blat/E-coli-K12.fa.2bit' => 'd40176801d2f23f76f7c575843350923',
+    'star/chrLength.txt' => '9be57bfb0f37bd0c34ce8c3b58c62f0e',
+    'star/chrNameLength.txt' => 'f67cb9999741fd15db9fa7a111c9008f',
+    'star/chrName.txt' => '3f941ce91fb7e8eca71405051a1cd7c7',
+    'star/chrStart.txt' => 'faf5c55020c99eceeef3e34188ac0d2f',
+    'star/Genome' => '4b797f9f5143695d6215711ecad3b609',
+    'star/genomeParameters.txt' => '5752a176c43259be4d5b6381636c6d17',
+    'star/SA' => '7fbb7e96f3037de8f575576c72ecb67c',
+    'star/SAindex' => '60c5b0bb5dbd4692facd7b58318f8f98',
   );
 
   ok (-e 'npgqc/E-coli-K12.fa.json', 'json file exists');
@@ -94,10 +103,10 @@ SKIP: {
   SKIP: {
     skip '10X longranger pipeline is not installed in travis, skip testing!',
       19 if ($ENV{'TRAVIS'});
-  
+
     # Run Ref_Maker --longranger, redirecting stdout and stderr to .log file
     is(system("$startDir/bin/Ref_Maker --longranger > Ref_Maker_longranger.log 2>&1"), 0, 'Ref_Maker_longranger exit status');
-  
+
     # now verify md5 checksum for all other files
     my %expectedLongrangerMD5 = (
       '10X/fasta/genome.fa' => '7285062348a4cb07a23fcd3b44ffcf5d',

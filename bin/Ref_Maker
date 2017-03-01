@@ -24,10 +24,9 @@ use npg_tracking::util::abs_path qw(abs_path);
 
 our $VERSION = '0';
 
-Readonly::Array  my @ALIGNERS             => qw{ bowtie bowtie2 bwa bwa0_6 samtools };
+Readonly::Array  my @ALIGNERS             => qw{ bowtie bowtie2 bwa bwa0_6 samtools star };
 Readonly::Scalar my $DIR_PERM             => oct 755;
 Readonly::Scalar my $BWA_ALGORITHM_CUTOFF => 1_200_000_000;
-
 Readonly::Scalar my $SKIP_STRING => "\n*** Skipping to next aligner ***\n\n";
 
 my $ref_size;
@@ -48,6 +47,7 @@ sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
         npgqc       => 0,
         picard      => 0,
         samtools    => 0,
+        star        => 0,
     );
     GetOptions( \%build, keys %build ) or croak 'Error in command line arguments';
 
@@ -71,7 +71,7 @@ sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
     # If no arguments were supplied build all index files, except longranger
     if ( sum( values %build ) == 0 ) {
         foreach my $k ( keys %build ) { $build{$k} = 1; }
-	$build{'longranger'} = 0;
+        $build{'longranger'} = 0;
     }
 
     # bwa uses a different algorithm depending on the size of the reference.
@@ -86,6 +86,7 @@ sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
     $arguments{'bwa0_6'}   = " index -p $files[0] -a $bwa_algorithm $files[0]";
     $arguments{'maq'}      = " fasta2bfa $files[0] $files[0].bfa";
     $arguments{'samtools'} = " faidx $files[0]";
+    $arguments{'star'}     = " --runMode genomeGenerate --genomeDir ./ --genomeFastaFiles ../fasta/$files[0]";
 
     my @failed; # record any failures
     my %subs = ();
@@ -107,9 +108,12 @@ sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
         next if !$build{$aligner};
 
         clean_slate($aligner); # Makes a subdirectory to hold the output.
-        my $executable = $aligner;
 
-        my $command = $aligner eq 'bowtie2' ? 'bowtie2-build' : $aligner. '_cmd';
+        #star's binary name is upppercase (ugh)
+        my $executable = $aligner eq 'star' ? 'STAR' : $aligner;
+        my $command = $aligner eq 'bowtie2' ? 'bowtie2-build' :
+                      $aligner eq 'star' ? 'STAR' : $aligner. '_cmd';
+
         $version{$aligner} = $rm->current_version($rm->$command);
         if ( !$version{$aligner} ) {
             carp "Version string not found for $aligner, continuing without";
@@ -336,7 +340,12 @@ sub _get_rm {
             is            => 'ro',
             isa           => 'NpgCommonResolvedPathExecutable',
             default       => 'bowtie2-build',
-	    coerce        => 1,));
+            coerce        => 1,));
+    $rm_class->add_attribute('STAR' => (
+            is            => 'ro',
+            isa           => 'NpgCommonResolvedPathExecutable',
+            default       => 'STAR',
+            coerce        => 1,));
     return $rm_class->new_object();
 }
 
