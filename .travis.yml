@@ -30,6 +30,7 @@ env:
     - SAMTOOLS_VERSION="0.1.19"
     - ILLUMINA2BAM_VERSION="1.18"
     - PICARD_VERSION="1.72"
+    - STAR_VERSION="2.5.2b"
     - TOOLS_INSTALLED=1
 #    - TEST_AUTHOR=1 # disabled to avoid perl critic complaints
     - MACHTYPE="`uname -m`"

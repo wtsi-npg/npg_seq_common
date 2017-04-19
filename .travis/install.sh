@@ -126,7 +126,7 @@ curl -L 'http://git.savannah.gnu.org/gitweb/?p=autoconf-archive.git;a=blob_plain
 popd
 aclocal -I acinclude.m4
 autoreconf -i
-./configure --prefix=/tmp --with-htslib=/tmp/htslib --enable-plugins
+./configure --prefix=/tmp --with-htslib=/tmp/htslib --enable-plugins --without-curses
 make
 ln -s /tmp/samtools-irods/samtools /tmp/bin/samtools_irods
 popd
@@ -149,6 +149,12 @@ unzip picard-tools-${PICARD_VERSION}.zip
 wget https://github.com/gt1/biobambam2/releases/download/${BIOBAMBAM_VERSION}/biobambam2-${BIOBAMBAM_VERSION}-x86_64-etch-linux-gnu.tar.gz -O biobambam2.tar.gz
 mkdir biobambam2
 tar xzf biobambam2.tar.gz -C biobambam2 --strip-components 1
+
+# star
+
+wget https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.zip
+unzip ${STAR_VERSION}.zip
+ln -s /tmp/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /tmp/bin/STAR
 
 
 popd
