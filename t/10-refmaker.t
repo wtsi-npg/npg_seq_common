@@ -67,7 +67,6 @@ SKIP: {
     'fasta/E-coli-K12.fa' => '7285062348a4cb07a23fcd3b44ffcf5d',
     'fasta/E-coli-K12.fa.fai' => '3bfb02378761ec6fe2b57e7dc99bd2b5',
     'samtools/E-coli-K12.fa.fai' => '3bfb02378761ec6fe2b57e7dc99bd2b5',
-    'blat/E-coli-K12.fa.2bit' => 'd40176801d2f23f76f7c575843350923',
     'star/chrLength.txt' => '9be57bfb0f37bd0c34ce8c3b58c62f0e',
     'star/chrNameLength.txt' => 'f67cb9999741fd15db9fa7a111c9008f',
     'star/chrName.txt' => '3f941ce91fb7e8eca71405051a1cd7c7',
