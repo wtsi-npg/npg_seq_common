@@ -108,12 +108,9 @@ sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
         next if !$build{$aligner};
 
         clean_slate($aligner); # Makes a subdirectory to hold the output.
+        my $executable = $aligner;
 
-        #star's binary name is upppercase (ugh)
-        my $executable = $aligner eq 'star' ? 'STAR' : $aligner;
-        my $command = $aligner eq 'bowtie2' ? 'bowtie2-build' :
-                      $aligner eq 'star' ? 'STAR' : $aligner. '_cmd';
-
+        my $command = $aligner eq 'bowtie2' ? 'bowtie2-build' : $aligner. '_cmd';
         $version{$aligner} = $rm->current_version($rm->$command);
         if ( !$version{$aligner} ) {
             carp "Version string not found for $aligner, continuing without";
@@ -340,11 +337,6 @@ sub _get_rm {
             is            => 'ro',
             isa           => 'NpgCommonResolvedPathExecutable',
             default       => 'bowtie2-build',
-            coerce        => 1,));
-    $rm_class->add_attribute('STAR' => (
-            is            => 'ro',
-            isa           => 'NpgCommonResolvedPathExecutable',
-            default       => 'STAR',
             coerce        => 1,));
     return $rm_class->new_object();
 }

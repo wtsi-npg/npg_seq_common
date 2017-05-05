@@ -154,7 +154,7 @@ tar xzf biobambam2.tar.gz -C biobambam2 --strip-components 1
 
 wget https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.zip
 unzip ${STAR_VERSION}.zip
-ln -s /tmp/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /tmp/bin/STAR
+ln -s /tmp/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /tmp/bin/star
 
 
 popd

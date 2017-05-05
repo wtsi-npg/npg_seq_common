@@ -72,7 +72,7 @@ SKIP: {
     'star/chrName.txt' => '3f941ce91fb7e8eca71405051a1cd7c7',
     'star/chrStart.txt' => 'faf5c55020c99eceeef3e34188ac0d2f',
     'star/Genome' => '4b797f9f5143695d6215711ecad3b609',
-    'star/genomeParameters.txt' => '5752a176c43259be4d5b6381636c6d17',
+    'star/genomeParameters.txt' => 'f27946102070db744f6f8922d1202b59',
     'star/SA' => '7fbb7e96f3037de8f575576c72ecb67c',
     'star/SAindex' => '60c5b0bb5dbd4692facd7b58318f8f98',
   );
