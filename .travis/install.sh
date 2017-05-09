@@ -132,14 +132,6 @@ ln -s /tmp/samtools-irods/samtools /tmp/bin/samtools_irods
 popd
 
 
-# illumina2bam
-
-git clone --branch V${ILLUMINA2BAM_VERSION} --depth 1 https://github.com/wtsi-npg/illumina2bam.git illumina2bam
-pushd illumina2bam
-ant -lib lib/bcel jar
-popd
-
-
 # picard
 wget https://sourceforge.net/projects/picard/files/picard-tools/${PICARD_VERSION}/picard-tools-${PICARD_VERSION}.zip/download -O picard-tools-${PICARD_VERSION}.zip
 unzip picard-tools-${PICARD_VERSION}.zip
