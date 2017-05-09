@@ -134,10 +134,10 @@ popd
 
 # illumina2bam
 
-git clone --branch V${ILLUMINA2BAM_VERSION} --depth 1 https://github.com/wtsi-npg/illumina2bam.git illumina2bam
-pushd illumina2bam
-ant -lib lib/bcel jar
-popd
+#git clone --branch V${ILLUMINA2BAM_VERSION} --depth 1 https://github.com/wtsi-npg/illumina2bam.git illumina2bam
+#pushd illumina2bam
+#ant -lib lib/bcel jar
+#popd
 
 
 # picard
