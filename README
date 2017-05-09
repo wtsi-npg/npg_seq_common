@@ -10,8 +10,7 @@ Dependencies on other NPG Perl packages:
 
 Dependencies on other NPG bioinformatics tools
 
-1. illumina2bam https://github.com/wtsi-npg/illumina2bam
-2. samtools_irods https://github.com/wtsi-npg/samtools_irods
+1. samtools_irods https://github.com/wtsi-npg/samtools_irods
 
 Dependencies on third party bioinformatics tools
 

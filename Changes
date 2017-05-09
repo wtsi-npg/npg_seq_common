@@ -1,5 +1,7 @@
 LIST OF CHANGES
 
+  - Travis not to build illumina2bam as its jar(s) are not used anymore
+
 release 50.15
   - RefMaker not to build smalt index
 
