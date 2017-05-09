@@ -176,6 +176,11 @@ defaults to "bcftools" found on the path
 
 java command resolved to an absolute path
 
+=head2 star_cmd
+
+star command resolved to an absolute path to an executable;
+defaults to "star" found on the path
+
 =head2 find_jar
 
 find a named jar on the current jar_path
