@@ -1,5 +1,11 @@
 LIST OF CHANGES
 
+release 50.17
+  - update travis install
+    - use samtools/htslib 1.6 from samtools repos
+    - drop perl 5.16 from matrix
+    - drop pb_calibration
+
 release 50.16
   - RefMaker: updated to generate STAR aligner reference genome indexes
   - Travis not to build illumina2bam as its jar(s) are not used anymore
