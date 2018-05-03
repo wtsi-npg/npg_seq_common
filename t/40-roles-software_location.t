@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 102; # + 13 for each extra tool
+use Test::More tests => 100; # + 13 for each extra tool
 use Test::Exception;
 use Test::Deep;
 use Cwd qw(abs_path cwd);
@@ -257,12 +257,8 @@ my ($abs_path, $software);
          'Return version string for maq' );
     is ( $test->current_version("$bin/samtools"),  q{0.1.11 (r851)},
          'Return version string for samtools' );
-    is ( $test->current_version("$bin/velveth"),    q{1.0.13},
-         'Return version string for velveth' );
     is ( $test->current_version("$bin/smalt"),     q{0.4},
          'Return version string for smalt' );
-    is ( $test->current_version("$bin/soap"),      q{2.20},
-         'Return version string for soap2' );
 }
 
 package test_class;
