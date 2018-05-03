@@ -16,7 +16,7 @@ our $VERSION = '0';
 Readonly::Array my @TOOLS => qw/bwa bwa0_6 samtools samtools_irods bowtie java star/;
 
 subtype 'NpgCommonResolvedPathExecutable'
-      => where { (abs_path($_) eq $_) && ( -x ) },
+      => where { ((abs_path($_) || q[]) eq $_) && ( -x ) },
       => as 'Str',
       => message { ($_ || q[]). ' is not an executable' };
 coerce 'NpgCommonResolvedPathExecutable',
