@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 102; # + 13 for each extra tool
+use Test::More tests => 105;
 use Test::Exception;
 use Test::Deep;
 use Cwd qw(abs_path cwd);
@@ -30,7 +30,7 @@ has 'jar' => ( is   => 'rw',isa  => 'NpgCommonResolvedPathJarFile',
 
 package main;
 
-my @tools = qw/bwa samtools samtools_irods bowtie/;
+my @tools = qw/bwa0_6 samtools samtools_irods bowtie bwa/;
 
 my $temp_dir = tempdir(CLEANUP => 1);
 
@@ -70,41 +70,43 @@ my ($abs_path, $software);
 
 {
     local $ENV{PATH} = qq[$temp_dir];
-
-    lives_ok {$software = _obj()}
-    "can create object";
+    lives_ok {$software = _obj()} "can create object";
 
     foreach my $tool ( @tools ) {
 
         my $method = "${tool}_cmd";
-
+        
         throws_ok {$software->$method}
             qr/no '$tool' executable is on the path/,
-           "error when $tool is not on the path";
-
-        system "echo 'mock $tool' > $temp_dir/$tool";
-        chmod 0755, "$temp_dir/$tool";
-
-        $abs_path = catfile( abs_path($temp_dir), qq[$tool]);
-
+            "error when $tool is not on the path";
+        
+        if ($tool ne 'bwa') {
+          system "echo 'mock $tool' > $temp_dir/$tool";
+          chmod 0755, "$temp_dir/$tool";
+        } else {
+          symlink "bwa0_6", "$temp_dir/bwa" or die 'cannot symlink';
+        }
+        
+        $abs_path = abs_path(catfile($temp_dir, $tool));
         lives_ok {$software->$method} 
-        "no error when $tool is on the path and is executable";
+            "no error when $tool is on the path and is executable";
         is ($software->$method, $abs_path, "returns correct absolute path to $tool");
-
         lives_ok {$software = _obj($method => qq[$tool]) }
             "$tool is on the path, no error setting it as '$tool'";
         is ($software->$method, $abs_path, "returns correct absolute path");
-
-        chmod 0644, "$temp_dir/$tool";
-
-        throws_ok { _obj($method => qq[$tool]) } 
-            qr/no '$tool' executable is on the path/, 
-            "error when $tool does exists on the path but is not executable";
+        
+        if ($tool ne 'bwa') {
+            chmod 0644, "$temp_dir/$tool";
+            throws_ok { _obj($method => qq[$tool]) } 
+              qr/no '$tool' executable is on the path/, 
+              "error when $tool does exists on the path but is not executable";
+            chmod 0755, "$temp_dir/$tool";
+        }
     }
 }
 
 {
-    foreach my $tool ( @tools ) {
+    foreach my $tool ( grep {$_ ne 'bwa'} @tools ) {
 
         my $method = "${tool}_cmd";
         $abs_path = catfile( abs_path($temp_dir), qq[$tool]);
@@ -257,12 +259,8 @@ my ($abs_path, $software);
          'Return version string for maq' );
     is ( $test->current_version("$bin/samtools"),  q{0.1.11 (r851)},
          'Return version string for samtools' );
-    is ( $test->current_version("$bin/velveth"),    q{1.0.13},
-         'Return version string for velveth' );
     is ( $test->current_version("$bin/smalt"),     q{0.4},
          'Return version string for smalt' );
-    is ( $test->current_version("$bin/soap"),      q{2.20},
-         'Return version string for soap2' );
 }
 
 package test_class;
