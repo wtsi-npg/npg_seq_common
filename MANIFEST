@@ -13,8 +13,6 @@ MANIFEST
 README
 bin/base_count_maker
 bin/FastaFormat
-bin/generate_cached_fastq
-bin/npg_fastq2fasta
 bin/npg_mail_cron_output
 bin/Ref_Maker
 src/gcn_maker.d
@@ -23,12 +21,10 @@ t/00-distribution.t
 t/00-podcoverage.t
 t/00-pod.t
 t/10-Alignment.t
-t/10-extractor-fastq-cache.t
 t/10-extractor-fastq.t
 t/10-fastqcheck.t
 t/10-refmaker.t
 t/10-scripts_compile.t
-t/10-scripts-generate_cached_fastq.t
 t/10-sequence-reference-base_count.t
 t/40-roles-log.t
 t/40-roles-SequenceInfo.t
@@ -83,12 +79,6 @@ t/data/references/Plasmodium_falciparum/default/all/fasta/Pf3D7_v3.fasta.fai
 t/data/s1.fastq
 t/data/s2.fastq
 t/data/scratch/This_dir_is_wiped_during_tests
-t/data/scripts/generate_cached_fastq/7197/7197_7.bam
-t/data/scripts/generate_cached_fastq/7197/7197_7.fastqcheck
-t/data/scripts/generate_cached_fastq/7197/lane7/7197_7.fastqcheck
-t/data/scripts/generate_cached_fastq/7197_se_with_ic/7197_7_1.fastqcheck
-t/data/scripts/generate_cached_fastq/7197_se_with_ic/7197_7.bam
-t/data/scripts/generate_cached_fastq/7197_se_with_ic/lane7/7197_7.fastqcheck
 t/data/ss1.fastq
 t/data/ss1.fastqcheck
 t/data/ss1_split3.fastq
