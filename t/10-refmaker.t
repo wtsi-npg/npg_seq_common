@@ -1,6 +1,6 @@
 
 use warnings;
-use Test::More tests => 82;
+use Test::More tests => 84;
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
 use File::Slurp;
@@ -12,7 +12,7 @@ use JSON;
 
 SKIP: {
   skip 'Third party bioinformatics tools required. Set TOOLS_INSTALLED to true to run.',
-    98 unless ($ENV{'TOOLS_INSTALLED'});
+    84 unless ($ENV{'TOOLS_INSTALLED'});
   my $startDir = getcwd();
   my $fastaMaster = 't/data/references/E_coli/K12/fasta/E-coli-K12.fa';
   unless (-e $fastaMaster) {
@@ -58,6 +58,7 @@ SKIP: {
     'bwa0_6/E-coli-K12.fa.sa' => '6e5b71027ce8766ce5e2eea08d1da0ec',
     'fasta/E-coli-K12.fa' => '7285062348a4cb07a23fcd3b44ffcf5d',
     'fasta/E-coli-K12.fa.fai' => '3bfb02378761ec6fe2b57e7dc99bd2b5',
+    'minimap2/E-coli-K12.fa.mmi' => '57c2841e5d5507e77a71d27d99937be0',
     'samtools/E-coli-K12.fa.fai' => '3bfb02378761ec6fe2b57e7dc99bd2b5',
     'star/chrLength.txt' => '9be57bfb0f37bd0c34ce8c3b58c62f0e',
     'star/chrNameLength.txt' => 'f67cb9999741fd15db9fa7a111c9008f',
