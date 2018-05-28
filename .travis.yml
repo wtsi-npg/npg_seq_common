@@ -16,8 +16,7 @@ env:
   global:
     - SH=bash
     - DNAP_UTILITIES_VERSION="0.5.1"
-    - BWA_VERSION="0.5.10-mt_fixes.2"
-    - BWA0_6_VERSION="v0.7.13"
+    - BWA0_6_VERSION="v0.7.17"
     - BLAT_VERSION="35"
     - BOWTIE_VERSION="v1.0.1-dkj-fopen_with_MM"
     - BOWTIE2_VERSION="v2.2.7"

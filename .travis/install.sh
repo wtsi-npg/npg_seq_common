@@ -17,14 +17,6 @@ sudo apt-get install liblzma-dev # For npg_qc
 
 pushd /tmp
 
-# bwa
-
-git clone --branch ${BWA_VERSION} --depth 1 https://github.com/wtsi-npg/bwa.git bwa
-pushd bwa
-make
-ln -s /tmp/bwa/bwa /tmp/bin/bwa
-popd
-
 # bwa0_6
 
 git clone --branch ${BWA0_6_VERSION} --depth 1 https://github.com/lh3/bwa.git bwa0_6

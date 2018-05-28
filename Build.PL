@@ -12,6 +12,7 @@ my $requires = {
                 'Fatal'                           => 0,
                 'Fcntl'                           => 0,
                 'File::Basename'                  => 0,
+                'File::chdir'                     => 0,
                 'File::Compare'                   => 0,
                 'File::Copy'                      => 0,
                 'File::Path'                      => 0,

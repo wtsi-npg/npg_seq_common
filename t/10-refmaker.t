@@ -1,6 +1,6 @@
-use strict;
+
 use warnings;
-use Test::More tests => 98;
+use Test::More tests => 84;
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
 use File::Slurp;
@@ -12,7 +12,7 @@ use JSON;
 
 SKIP: {
   skip 'Third party bioinformatics tools required. Set TOOLS_INSTALLED to true to run.',
-    98 unless ($ENV{'TOOLS_INSTALLED'});
+    84 unless ($ENV{'TOOLS_INSTALLED'});
   my $startDir = getcwd();
   my $fastaMaster = 't/data/references/E_coli/K12/fasta/E-coli-K12.fa';
   unless (-e $fastaMaster) {
@@ -51,14 +51,6 @@ SKIP: {
     'bowtie2/E-coli-K12.fa.4.bt2' => 'b5a28fd5c0e83d467e6eadb971b3a913',
     'bowtie2/E-coli-K12.fa.rev.1.bt2' => '8c9502dfff924d4dac0b33df0d20b07e',
     'bowtie2/E-coli-K12.fa.rev.2.bt2' => '5a3d15836114aa132267808e4b281066',
-    'bwa/E-coli-K12.fa.amb' => 'fd2be0b3b8f7e2702450a3c9dc1a5d93',
-    'bwa/E-coli-K12.fa.ann' => '84365967cebedbee51467604ae27a1f9',
-    'bwa/E-coli-K12.fa.bwt' => '08006d510fa01d61a2ae4e3274f9a031',
-    'bwa/E-coli-K12.fa.pac' => 'ca740caf5ee4feff8a77d456ad349c23',
-    'bwa/E-coli-K12.fa.rbwt' => 'd164645e1a53de56145e7d167b554cf3',
-    'bwa/E-coli-K12.fa.rpac' => '19897ea393ad8f7439ad3242dc0ce480',
-    'bwa/E-coli-K12.fa.rsa' => '70128b51beecb212e442d758bb005db7',
-    'bwa/E-coli-K12.fa.sa' => 'f4a3e35b8e2567dc4f6d90df42c1739b',
     'bwa0_6/E-coli-K12.fa.amb' => 'fd2be0b3b8f7e2702450a3c9dc1a5d93',
     'bwa0_6/E-coli-K12.fa.ann' => '84365967cebedbee51467604ae27a1f9',
     'bwa0_6/E-coli-K12.fa.bwt' => '09f551b8f730df82221bcb6ed8eea724',
@@ -66,6 +58,7 @@ SKIP: {
     'bwa0_6/E-coli-K12.fa.sa' => '6e5b71027ce8766ce5e2eea08d1da0ec',
     'fasta/E-coli-K12.fa' => '7285062348a4cb07a23fcd3b44ffcf5d',
     'fasta/E-coli-K12.fa.fai' => '3bfb02378761ec6fe2b57e7dc99bd2b5',
+    'minimap2/E-coli-K12.fa.mmi' => '57c2841e5d5507e77a71d27d99937be0',
     'samtools/E-coli-K12.fa.fai' => '3bfb02378761ec6fe2b57e7dc99bd2b5',
     'star/chrLength.txt' => '9be57bfb0f37bd0c34ce8c3b58c62f0e',
     'star/chrNameLength.txt' => 'f67cb9999741fd15db9fa7a111c9008f',
