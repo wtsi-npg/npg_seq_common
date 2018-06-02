@@ -3,7 +3,7 @@ package npg_common::roles::software_location;
 use Moose::Role;
 use Moose::Util::TypeConstraints;
 use Carp;
-use File::Spec::Functions qw(catfile);
+use File::Spec::Functions qw(catfile splitdir);
 use File::Which qw(which);
 use IPC::Open3;
 use Perl6::Slurp;
@@ -95,6 +95,14 @@ sub current_version {
             my $output = slurp($out);
             ($version) = $output =~ m/$regex/igmsx;
             last if defined $version;
+        }
+        if (not defined $version) { # fallback to pulling version from path
+            my @path = splitdir $cmd;
+            pop @path;
+            my $pver = pop @path;
+            if ($pver eq q(bin)) { $pver = pop @path; }
+            # presume path based version must have a digit followed by a "."
+            if ($pver =~ m{[[:digit:]][.]}smxg) { $version = $pver;}
         }
     }
     return $version;

@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 105;
+use Test::More tests => 108;
 use Test::Exception;
 use Test::Deep;
 use Cwd qw(abs_path cwd);
@@ -261,6 +261,12 @@ my ($abs_path, $software);
          'Return version string for samtools' );
     is ( $test->current_version("$bin/smalt"),     q{0.4},
          'Return version string for smalt' );
+    is ( $test->current_version(abs_path 't/data/aligners/0.010/tool_not_in_bin_with_no_version'),
+          q{0.010}, 'Return version from path without a bin element');
+    is ( $test->current_version(abs_path 't/data/aligners/0.010/bin/tool_in_bin_with_no_version'),
+          q{0.010}, 'Return version from path with a bin element');
+    is ( $test->current_version(abs_path 't/data/aligners/bin/tool_with_no_version'),
+          undef, 'Undefined if we cannot get a version successfully');
 }
 
 package test_class;
