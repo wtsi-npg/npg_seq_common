@@ -1,6 +1,7 @@
 package npg_common::roles::software_location;
 
 use Moose::Role;
+use MooseX::Role::Parameterized;
 use Moose::Util::TypeConstraints;
 use Carp;
 use File::Spec::Functions qw(catfile splitdir);
@@ -26,7 +27,15 @@ coerce 'NpgCommonResolvedPathExecutable',
                     : which($_) ? abs_path( (which($_))[0] )
                     : croak "no '$_' executable is on the path" };
 
-foreach my $tool ( @TOOLS ) {
+parameter tools => (
+        isa      => 'ArrayRef',
+        required => 1,
+        default => sub { [@TOOLS] },
+);
+
+role {
+  my $p = shift;
+  foreach my $tool ( @{$p->tools} ) {
     my $attribute_name = qq[${tool}_cmd];
     has $attribute_name     => (
        is                   => 'ro',
@@ -40,7 +49,21 @@ foreach my $tool ( @TOOLS ) {
    no strict 'refs';
    no warnings 'redefine';
    *{$build_method}= sub{ return $tool; };
-}
+  }
+
+  method resolved_paths => sub {
+    my $self = shift;
+    my $predicate_hash = {};
+    foreach my $tool ( @{$p->tools} ) {
+        my $accessor = qq[${tool}_cmd];
+        my $method = qq[has_$accessor];
+        if ($self->$method) {
+            $predicate_hash->{$accessor} = $self->$accessor;
+        }
+    }
+    return %{$predicate_hash};
+  };
+};
 
 subtype 'NpgCommonResolvedPathJarFile'
       => where { ( -r ) && (abs_path($_) eq $_) },
@@ -59,19 +82,6 @@ sub _find_jar {
         return abs_path($jar) if (-e $jar);
     }
     return;
-}
-
-sub resolved_paths {
-    my $self = shift;
-    my $predicate_hash = {};
-    foreach my $tool (@TOOLS) {
-        my $accessor = qq[${tool}_cmd];
-        my $method = qq[has_$accessor];
-        if ($self->$method) {
-            $predicate_hash->{$accessor} = $self->$accessor;
-        }
-    }
-    return %{$predicate_hash};
 }
 
 sub current_version {
