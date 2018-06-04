@@ -83,7 +83,7 @@ sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
     $arguments{'bowtie2'}  = "-build $files[0] $files[0]";
     $arguments{'bwa0_6'}   = " index -p $files[0] -a $bwa_algorithm $files[0]";
     $arguments{'maq'}      = " fasta2bfa $files[0] $files[0].bfa";
-    $arguments{'minimap2'} = " -d $files[0].mmi $files[0]";
+    $arguments{'minimap2'} = " -x sr -d $files[0].mmi $files[0]";
     $arguments{'samtools'} = " faidx $files[0]";
     $arguments{'star'}     = " --runMode genomeGenerate --genomeDir ./ --genomeFastaFiles ../fasta/$files[0]";
 
