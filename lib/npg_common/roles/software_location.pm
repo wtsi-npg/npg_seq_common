@@ -13,10 +13,10 @@ use npg_tracking::util::abs_path qw(abs_path);
 
 our $VERSION = '0';
 
-Readonly::Array my @TOOLS => qw/bwa bwa0_6 samtools samtools_irods bowtie java star/;
+Readonly::Array my @TOOLS => qw/bwa bwa0_6 samtools samtools_irods bowtie java star minimap2/;
 
 subtype 'NpgCommonResolvedPathExecutable'
-      => where { (abs_path($_) eq $_) && ( -x ) },
+      => where { ((abs_path($_) || q[]) eq $_) && ( -x ) },
       => as 'Str',
       => message { ($_ || q[]). ' is not an executable' };
 coerce 'NpgCommonResolvedPathExecutable',
@@ -180,6 +180,11 @@ java command resolved to an absolute path
 
 star command resolved to an absolute path to an executable;
 defaults to "star" found on the path
+
+=head2 minimap2_cmd
+
+minimap2 command resolved to an absolute path to an executable;
+defaults to "minimap2" found on the path
 
 =head2 find_jar
 

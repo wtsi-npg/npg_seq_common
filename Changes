@@ -1,5 +1,9 @@
 LIST OF CHANGES
 
+  - in preparation for moving to bwa0_6 as default, added tests which check
+    that the code works for soft-linked bwa
+  - update Ref_Maker to produce indexes for minimap2
+
 release 50.17
   - update travis install
     - use samtools/htslib 1.6 from samtools repos

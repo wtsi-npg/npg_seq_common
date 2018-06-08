@@ -16,8 +16,7 @@ env:
   global:
     - SH=bash
     - DNAP_UTILITIES_VERSION="0.5.1"
-    - BWA_VERSION="0.5.10-mt_fixes.2"
-    - BWA0_6_VERSION="v0.7.13"
+    - BWA0_6_VERSION="v0.7.17"
     - BLAT_VERSION="35"
     - BOWTIE_VERSION="v1.0.1-dkj-fopen_with_MM"
     - BOWTIE2_VERSION="v2.2.7"
@@ -27,6 +26,7 @@ env:
     - SAMTOOLS_VERSION="1.6"
     - PICARD_VERSION="1.72"
     - STAR_VERSION="2.5.2b"
+    - MINIMAP2_VERSION="2.10"
     - TOOLS_INSTALLED=1
 #    - TEST_AUTHOR=1 # disabled to avoid perl critic complaints
     - MACHTYPE="`uname -m`"

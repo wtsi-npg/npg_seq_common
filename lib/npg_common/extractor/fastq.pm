@@ -23,45 +23,11 @@ use npg_common::fastqcheck;
 our $VERSION = '0';
 
 our @EXPORT_OK = qw(
-                    first_read_length
                     read_count
-                    generate_equally_spaced_reads
-                    get_equally_spaced_reads
-                    get_equally_spaced_reads_single
                     split_reads
-                    generate_cache
-                    retrieve_from_cache
-                    to_fasta
                    );
 
-Readonly::Scalar our $LANES_PER_READ  => 4;
-Readonly::Scalar our $NUM_ARGS  => 5;
-Readonly::Scalar our $CACHE_DIR_PREFIX  => q[.npg_cache];
-Readonly::Scalar our $CACHE_DIR_ENV_VAR => q[NPG_FASTQ_CACHE];
-Readonly::Scalar our $SAMPLE_SIZE       => 10_000;
-Readonly::Scalar our $EXT => q[fastq];
-Readonly::Scalar our $CACHED_FILE_DELIM => q[.];
-Readonly::Scalar our $INIT_VALUE => -1;
-
-sub _jump_by {
-    my ($sources, $count) = @_;
-    foreach my $fh ( @{$sources} ) {
-        my $i = 0;
-        while ($i < $count ) {
-            <$fh> or return 0;
-            $i++;
-        }
-    }
-    return 1;
-}
-
-sub _is_pair {
-
-    my ($l1, $l2) = @_;
-    $l1 =~ s/\/\d?//smx;
-    $l2 =~ s/\/[\d|t]?//smx;
-    return ($l1 eq $l2);
-}
+Readonly::Scalar our $LINES_PER_READ  => 4;
 
 
 sub _line_count_by_counting {
@@ -75,69 +41,13 @@ sub _line_count_by_counting {
     close $fh or carp $ERRNO;
     ($line_count) = $line_count =~ /(\d+)/smx;
     if (defined $line_count) {
-        $line_count = int $line_count/$LANES_PER_READ;
+        $line_count = int $line_count/$LINES_PER_READ;
     }
     return $line_count;
 }
 
 
-sub _cache_dir {
-    my ($path, $sample_size) = @_;
-    my $dir =  $ENV{$CACHE_DIR_ENV_VAR};
-    if ($dir) { return $dir; }
-    if (!$sample_size) { $sample_size = $SAMPLE_SIZE; }
-    return File::Spec->catfile($path, join q[_], $CACHE_DIR_PREFIX, $sample_size);
-}
 
-
-sub _link2cache {
-    my ($filename, $new_file, $sample_size) = @_;
-
-    my $target;
-    ##no critic (RequireCheckingReturnValueOfEval)
-    eval {
-        $target = retrieve_from_cache($filename, $sample_size);
-    };
-    ##use critic;
-    if ($target) {
-        my $result =  eval { symlink $target, $new_file; 1 };
-        if ($result) {
-	    my ($actual_sample_size) = $target =~ m/ [.] (\d+) $/smx;
-            return $actual_sample_size;
-	}
-    }
-    return;
-}
-
-
-sub _close_file_handles {
-    my @handles = @_;
-    foreach my $fh (@handles) {
-        if ($fh) {close $fh or croak $ERRNO;}
-    }
-    return;
-}
-
-sub first_read_length {
-    my ($fname, $zero4empty_file) = @_;
-
-    open my $fh, q[<], $fname or croak qq[Cannot open $fname for reading];
-    my $err = qq[Cannot close filehandle to $fname];
-    my $lane = <$fh>;
-    if (!$lane) {
-        close $fh or croak $err;
-        if ($zero4empty_file) { return 0; }
-        croak qq[First line empty in $fname];
-    }
-    $lane = <$fh>;
-    if (!$lane) {
-        close $fh or croak $err;
-        croak qq[Second line empty in $fname];
-    }
-    close $fh or croak $err;
-    chomp $lane;
-    return length $lane;
-}
 
 
 sub read_count {
@@ -163,191 +73,6 @@ sub read_count {
     }
 
     return $num_reads;
-}
-
-
-sub generate_equally_spaced_reads {  ##no critic (ProhibitExcessComplexity)
-    my ($from, $to, $num_reads) = @_;
-
-    if (!$num_reads) {
-        croak q[Number of reads should be defined];
-    }
-
-    my $num_files = scalar @{$from};
-    if (!$num_files) {
-        croak q[Input file array empty];
-    }
-    if ($num_files != scalar @{$to}) {
-        croak q[Array size of from and to files should be the same];
-    }
-
-    my $actual_read_num = $INIT_VALUE;
-    my $previous_actual_read_num = $INIT_VALUE;
-    my $count = 0;
-    while ($count < $num_files) {
-        $actual_read_num =  _link2cache($from->[$count],$to->[$count],$num_reads);
-        if (!$actual_read_num) {
-            last;
-        }
-        if ($count != 0 && $actual_read_num != $previous_actual_read_num) {
-            $actual_read_num = undef;
-            last;
-        }
-        $previous_actual_read_num = $actual_read_num;
-        $count++;
-    }
-    if (defined $actual_read_num) { return $actual_read_num; }
-
-    my $read_count = read_count($from->[0]);
-
-    if ($read_count < $num_reads) {
-        carp q[File ] . $from->[0]  . qq[ is shorter ($read_count reads) than requested ($num_reads).];
-    }
-
-    $num_reads = $read_count <= $num_reads ? $read_count : $num_reads;
-    if ($num_reads == 0) {
-        return $num_reads;
-    }
-
-    ## no critic (RequireBriefOpen)
-    my @sources = ();
-    my @destinations = ();
-    $count = 0;
-    while ($count < $num_files) {
-        my $file = $from->[$count];
-        open my $source, q[<], $file or croak qq[Cannot open $file for reading.];
-        push @sources, $source;
-        $file = $to->[$count];
-        open my $dest, q[>], $file or croak qq[Cannot open $file for writing.];
-        push @destinations, $dest;
-        $count++;
-    }
-
-    my $i = 0;
-    my $jump_by = 0;
-    my $line = q[];
-    my $comparison = q[];
-    my $end_loop = $LANES_PER_READ - 1;
-    my $scale_factor = $read_count / $num_reads;
-    my $read_index = 0;
-    my $old_read_index = 0;
-
-    while ($i < $num_reads) {
-        $old_read_index = $read_index;
-        $read_index = round($i * $scale_factor);
-        $jump_by = $read_index - $old_read_index - 1;
-        if ($jump_by > 0) {
-            _jump_by(\@sources, $jump_by * $LANES_PER_READ ) or last;
-        }
-
-        for my $j ( 0 .. $end_loop ) {
-            my $hcount = 0;
-            while ($hcount < $num_files) {
-                my $sh = $sources[$hcount];
-                $line = <$sh>;
-                if (!$line) {
-                    push @sources, @destinations;
-                    _close_file_handles(@sources);
-                    croak q[File ] . $from->[$hcount] . qq[ is shorter than reported $read_count reads.];
-		}
-                if ($j == 0) {
-                    if( $hcount == 0) {
-                        $comparison = $line;
-                    }
-                    elsif (!_is_pair($comparison, $line)) {
-                            push @sources, @destinations;
-                            _close_file_handles(@sources);
-                            croak q[Reads are out of order in ] . $from->[0] . q[ and ] .
-                                     $from->[$hcount] . q[, read No ] . ($i+1);
-		    }
-		}
-                my $dh = $destinations[$hcount];
-                print {$dh} $line or croak $ERRNO;
-                $hcount++;
-           }
-       }
-        $i++;
-    }
-
-    push @sources, @destinations;
-    _close_file_handles(@sources);
-
-    if ($i < $num_reads) {
-        croak qq[One of the input files is shorter than reported $read_count reads.];
-    }
-
-    return $num_reads;
-}
-
-
-sub generate_cache {
-    my ($path, $from, $sample_size) = @_;
-
-    if (!$path) {
-        croak q[Directory in which to generate the cache is not given];
-    }
-    if (!@{$from}) {
-        croak q[Input file array empty];
-    }
-    if (!$sample_size) { $sample_size = $SAMPLE_SIZE; }
-    my $cache = _cache_dir($path, $sample_size);
-    if (!-d $cache) {
-        ##no critic (RequireCheckingReturnValueOfEval)
-	eval { mkdir $cache; }
-        ##use critic
-    }
-    if (!-d $cache) {
-        croak qq[Cache directory $cache does not exist];
-    }
-
-    ## no critic (ProhibitEscapedMetacharacters)
-    if($from->[0] =~ /\.bam$/smx) {
-		foreach my $file (@{$from}) {
-			my ($outbase,$dir,$suffix) = fileparse $file, '.bam';
-			my $cmd = "fastq_summ -F 0x200 -s $sample_size -k -o ${outbase} -d $cache $file";
-			if(system $cmd) {
-				croak qq[fastq_summ failed for file: $file, cmd: $cmd: $CHILD_ERROR];
-			}
-		}
-     } else {
-		my @to = ();
-		foreach my $file (@{$from}) {
-			my ($filename,$dir,$suffix) = fileparse $file;
-			push @to, File::Spec->catfile($cache, $filename)
-		}
-		my $actual_sample_size = generate_equally_spaced_reads($from, \@to, $sample_size);
-
-		foreach my $file (@to) {
-			rename $file, join $CACHED_FILE_DELIM, $file, $actual_sample_size;
-		}
-    }
-
-    return $cache;
-}
-
-
-sub retrieve_from_cache {
-    my ($file_path, $sample_size) = @_;
-
-    my $source_stats = stat $file_path or croak qq[Failed to get file stats for $file_path: $ERRNO];
-    my ($filename,$path,$suffix) = fileparse $file_path;
-    my $cache = _cache_dir($path, $sample_size);
-    if (!-d $cache) {
-        croak qq[Cache directory $cache does not exist];
-    }
-
-    my @found = glob File::Spec->catfile($cache, join $CACHED_FILE_DELIM, $filename, q[*]);
-    if (scalar @found == 1) {
-        my $target = $found[0];
-        my $stats;
-        ##no critic (RequireCheckingReturnValueOfEval)
-        eval { $stats = stat $target; };
-        ##use critic
-        if ($stats && $stats->mtime >= $source_stats->mtime) {
-            return $target;
-        }
-    }
-    return;
 }
 
 
@@ -419,7 +144,7 @@ sub split_reads { ##no critic (ProhibitExcessComplexity)
     my $count = 0;
     while (my $line = <$source>) {
         if ($line eq qq[\n]) { next; }
-        my $remainder = $count % $LANES_PER_READ;
+        my $remainder = $count % $LINES_PER_READ;
         if ($remainder == 1 || $remainder == 3) {
 	    if (length $line >= $total_wanted + 1) {
                 print {$dest1} substr $line, 0, $num_bases1 or croak $ERRNO;
@@ -462,36 +187,6 @@ sub split_reads { ##no critic (ProhibitExcessComplexity)
     return;
 }
 
-sub to_fasta {
-    my ($fastq, $fasta)   = @_;
-    ## no critic (InputOutput::RequireBriefOpen)
-    my $fa_fh;
-    if ($fasta) {
-        open $fa_fh, q[>], $fasta or croak qq[Cannot open $fasta for writing];
-    } else {
-        open $fa_fh, q[>&STDOUT] or croak q[Failed to open stdout for writing];
-    }
-
-    open my $fq_fh, q{<}, $fastq or croak qq[Cannot open $fastq for reading $ERRNO];
-
-    while (my $line = <$fq_fh>) {
-        my ($first_word) = $line =~ m/^ (\S+) /gmsx;
-        print {$fa_fh} ">$first_word\n" or croak 'cannot print to the pipe';
-        $line = <$fq_fh>;
-        if ($line) {
-            print {$fa_fh} $line or croak 'cannot print to the pipe';
-	} else {
-            croak q[File ended earlier than expected];
-	}
-        _jump_by([$fq_fh],2);
-    }
-    close $fq_fh or croak qq[Cannot close a handle to $fastq $ERRNO];
-    close $fa_fh or croak q[Cannot close an output filehandle];
-    ## use critic
-
-    return;
-}
-
 1;
 
 __END__
@@ -510,13 +205,6 @@ This module is for extracting parts of fastq files.
 
 =head1 SUBROUTINES/METHODS
 
-=head2 first_read_length
-  my $l = first_read_length($my_path);
-  my $zero4empty_file = 1;
-  first_read_length($empty, $zero4empty_file);  #returns 0
-  my $zero4empty_file = 0;
-  first_read_length($empty, $zero4empty_file);  #throws an error
-
 =head2 read_count - returns a number of reads in a fastq file.
 If a fastqcheck file is present alongside the first fastq file,
 the read count is taken from there. The fallback is a slow
@@ -524,10 +212,6 @@ system call to wc.
 
   my $count = line_count($my_path);
 
-=head2 generate_equally_spaced_reads - extract reads from an arbitrary number of fastq files;
-names of the files should be given as an array refs
-  generate_equally_spaced_reads($sources, $destinations, $num_reads),
-$num_reads is the number of reads that should be in the output files.
 
 =head2 split_reads - depending on input, either trims the number of bases to the requested number
 or, if two numbers are given, one output file has the trimmed reads and another has the bases that
@@ -575,33 +259,6 @@ written to files 37_1.fastq and 37_2.fastq in the current directory.
 
 Files to output can be given as a third argument
   split_read("input.fastq", [37,37], ['out1', 'out2']);
-
-
-=head2 generate_cache
-Call
-
- generate_cache($path, $files, $sample_size);
-
-to generate the cache of extracts in the default location, i.e. in the subdirectory
-of the input directory path, where $files is a ref to an array of file names.
-To generate the cache in any other location, set $ENV{NPG_FASTQ_CACHE} variable.
-If the sample size is not given, it defaults to 10000.
-
-=head2 retrieve_from_cache
-
-Call
-
- retrieve_from_cache($file_path, $sample_size);
-
-to get the path to the cached file or undef if the cached file does not exist;
-To retrieve from a non-standard cache location, set $ENV{NPG_FASTQ_CACHE} variable.
-If the sample size is not given, it defaults to 10000.
-
-=head2 to_fasta
-A fastq to fasta converter
- 
- to_fasta($fastq_in); #writes to stdout
- to_fasta($fastq_in, $fasta_out);
 
 =head1 DIAGNOSTICS
 
