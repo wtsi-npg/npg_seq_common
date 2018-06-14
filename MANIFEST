@@ -15,7 +15,6 @@ bin/base_count_maker
 bin/FastaFormat
 bin/npg_mail_cron_output
 bin/Ref_Maker
-src/gcn_maker.d
 t/00-critic.t
 t/00-distribution.t
 t/00-podcoverage.t
