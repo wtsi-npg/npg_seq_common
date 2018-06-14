@@ -1,12 +1,10 @@
 use strict;
 use warnings;
-use Test::More tests => 108;
+use Test::More tests => 101;
 use Test::Exception;
-use Test::Deep;
-use Cwd qw(abs_path cwd);
+use Cwd qw(cwd);
 use File::Temp qw(tempdir);
 use File::Spec::Functions qw(catfile);
-use File::Which qw(which);
 use Moose::Meta::Class;
 
 use npg_tracking::util::abs_path qw(abs_path);
@@ -156,27 +154,6 @@ my ($abs_path, $software);
     'a full path to test java command when it is on the path');   
 }
 
-{
-    local $ENV{PATH} = join q[:], 't/bin', $ENV{PATH};
-    my $bin = abs_path 't/bin';
-    lives_ok {$software = _obj(samtools_cmd => q[samtools], 
-                               bwa_cmd => q[bwa], )}
-        'object created for predicate test with samtools & bwa';
-    my %paths_hash = $software->resolved_paths();
-    is ($paths_hash{samtools_cmd}, catfile($bin, 'samtools'), 'samtools_cmd defined correctly');
-    is ($paths_hash{bwa_cmd}, catfile($bin, 'bwa'), 'bwa_cmd defined correctly');
-    ok (!$paths_hash{bowtie_cmd}, 'does not have bowtie_cmd defined');
-    ok (!$paths_hash{samtools_irods_cmd}, 'does not have samtools_irods_cmd defined');
-    ok (!$paths_hash{java_cmd}, 'does not have java_cmd defined');
-
-    my $h =  {
-              bowtie_cmd => q[/bin/false],
-              java_cmd => q[/bin/true]
-             };
-    my %actual = _obj($h)->resolved_paths();
-    is_deeply (\%actual, $h, 'resolved fields as set');    
-}
-
 { # testing find jar location
     my $obj;
     `mkdir $temp_dir/jar_path`;
@@ -269,61 +246,36 @@ my ($abs_path, $software);
           undef, 'Undefined if we cannot get a version successfully');
 }
 
-package test_class;
-use Moose;
-with qw/npg_common::roles::software_location/;
+{
+    my $testdir = "$temp_dir/test_tools";
+    mkdir $testdir or die "Failed to create directory $testdir";
+    my $file = "$testdir/samtools";
+    open my $fh, '>', $file or die "Failed to open $file for writing";
+    close $fh;
+    chmod 755, $file;
+    local $ENV{'PATH'} = join q[:], $testdir, $ENV{'PATH'};
 
-has 'something' => (
-    is  => 'rw',
-    isa => 'Str',
-);
-sub clone_with_propagation {
-    my ($self) = @_;
-    return new test_class ($self->resolved_paths);
+    my $obj = Moose::Meta::Class->create_anon_class(
+        roles => ['npg_common::roles::software_location' => { tools => [qw/samtools bowtie/] }],
+    )->new_object();
+    ok ($obj->can('samtools_cmd'), 'samtools_cmd method exists');
+    ok ($obj->can('bowtie_cmd'), 'bowtie_cmd method exists');
+    ok (!$obj->can('bwa_cmd'), 'bowtie_cmd method does not exist');
+
+    is ($obj->samtools_cmd(), $file, 'samtools found');
+
+    $obj = Moose::Meta::Class->create_anon_class(
+        roles => ['npg_common::roles::software_location' => { tools => [qw/some_test_tool/] }],
+    )->new_object();
+    ok ($obj->can('some_test_tool_cmd'), 'some_test_tool_cmd method exists');
+    throws_ok { $obj->some_test_tool_cmd() } qr/no 'some_test_tool' executable is on the path/,
+        'error when the tool is not on the path';
+
+    $file = "$testdir/some_test_tool";
+    open $fh, '>', $file or die "Failed to open $file for writing";
+    close $fh;
+    chmod 755, $file;
+    is ($obj->some_test_tool_cmd(), $file, 'tool found');
 }
-sub clone_without_propagation {
-    my ($self) = @_;
-    return new test_class ();
-}
-sub clone_with_propagation_and_something {
-    my ($self) = @_;
-    return new test_class ($self->resolved_paths, something => 'who knows?');
-}
-sub clone_without_propagation_and_something {
-    my ($self) = @_;
-    return new test_class (something => 'god knows!');
-}
-
-package main;
-
-local $ENV{PATH} = join q[:], 't/bin', $ENV{PATH};
-my $bwa = which('bwa');
-
-my $test = new test_class(bwa_cmd => q[bwa]);
-
-local $ENV{PATH} = q[];
-
-my $clone = $test->clone_with_propagation();
-
-lives_ok {$clone->bwa_cmd} q[bwa_cmd not on the path and inherited];
-
-my $dummy = $test->clone_without_propagation();
-
-throws_ok {$dummy->bwa_cmd} 
-          qr/no 'bwa' executable is on the path/,
-          q[bwa_cmd not on the path and not inherited];
-
-$clone = $test->clone_with_propagation_and_something();
-lives_ok {$clone->bwa_cmd && $clone->something} q[both bwa_cmd and attribute are inherited];
-
-is ($clone->bwa_cmd, abs_path($bwa), q[correct absolute path returned for bwa]);
-is ($clone->something, q[who knows?], q[has correct attribute set]);
-
-$clone = $test->clone_without_propagation_and_something();
-throws_ok {$clone->bwa_cmd} 
-          qr/no 'bwa' executable is on the path/,
-          q[bwa_cmd not on the path and not inherited];
-is ($clone->something, q[god knows!], q[has correct attribute set]);
-
 
 1;

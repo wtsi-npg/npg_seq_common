@@ -28,13 +28,14 @@ coerce 'NpgCommonResolvedPathExecutable',
                     : croak "no '$_' executable is on the path" };
 
 parameter tools => (
-        isa      => 'ArrayRef',
-        required => 1,
-        default => sub { [@TOOLS] },
+      isa      => 'ArrayRef',
+      required => 1,
+      default  => sub { return [@TOOLS]; },
 );
 
 role {
   my $p = shift;
+
   foreach my $tool ( @{$p->tools} ) {
     my $attribute_name = qq[${tool}_cmd];
     has $attribute_name     => (
@@ -44,25 +45,8 @@ role {
        coerce               => 1,
        documentation        => qq[${tool} command, returned resolved to an absolute path to an executable],
     );
-   my $build_method = qq[_build_${attribute_name}];
-   ##no critic (ProhibitNoStrict ProhibitNoWarnings)
-   no strict 'refs';
-   no warnings 'redefine';
-   *{$build_method}= sub{ return $tool; };
+    method qq[_build_${attribute_name}] => sub { return $tool; };
   }
-
-  method resolved_paths => sub {
-    my $self = shift;
-    my $predicate_hash = {};
-    foreach my $tool ( @{$p->tools} ) {
-        my $accessor = qq[${tool}_cmd];
-        my $method = qq[has_$accessor];
-        if ($self->$method) {
-            $predicate_hash->{$accessor} = $self->$accessor;
-        }
-    }
-    return %{$predicate_hash};
-  };
 };
 
 subtype 'NpgCommonResolvedPathJarFile'
@@ -150,14 +134,39 @@ npg_common::roles::software_location
 
 =head1 SYNOPSIS
 
+Default use
+
   use Moose;
   with 'npg_common::roles::software_location';
 
+  $self->samtools_cmd(); #OK
+  $seld->bwa_cmd();      #OK
+
+Specifying the tools
+
+  use Moose;
+  with 'npg_common::roles::software_location' =>
+    { tools => [qw/samtools/] };
+
+  $self->samtools_cmd(); #OK
+  $seld->bwa_cmd();      #Error, attribute does not exist
+
+  use Moose;
+  with 'npg_common::roles::software_location' =>
+    { tools => [qw/samtools my_tool/] };
+
+  $self->samtools_cmd(); #OK
+  $seld->my_tool_cmd();  #OK  
+
 =head1 DESCRIPTION
 
-Heuristic for finding at run time installed third-party tools 
+Heuristic for finding at run time installed third-party tools.
 
 =head1 SUBROUTINES/METHODS
+
+Attributes for individial tools listed below are available by default.
+If an array of tools is specified via the tools parameter, only
+the commands for tools in this array are available.
 
 =head2 samtools_cmd
 
@@ -177,18 +186,13 @@ defaults to "bwa" found on the path
 =head2 bwa0_6_cmd
 
 bwa0_6 resolved to an absolute path to an executable;
-defaults to "bwa0_6" found on the path
+defaults to "bwa0_6" found on the path.
 Represents bwa version 0.6 or above.
 
 =head2 bowtie_cmd
 
 bowtie command resolved to an absolute path to an executable;
-defaults to "bowtie" found on the path
-
-=head2 bcftools_cmd
-
-bcftools command resolved to an absolute path to an executable;
-defaults to "bcftools" found on the path
+defaults to "bowtie" found on the path.
 
 =head2 java_cmd
 
@@ -197,25 +201,17 @@ java command resolved to an absolute path
 =head2 star_cmd
 
 star command resolved to an absolute path to an executable;
-defaults to "star" found on the path
+defaults to "star" found on the path.
 
 =head2 minimap2_cmd
 
 minimap2 command resolved to an absolute path to an executable;
-defaults to "minimap2" found on the path
-
-=head2 find_jar
-
-find a named jar on the current jar_path
-
-=head2 resolved_paths
-
-returns a hash with accessors which are set 
+defaults to "minimap2" found on the path.
 
 =head2 current_version
 
-given a tool command, returns the version of the tool
-returns undefined if cannot get the version
+Given a full path tool command, returns the version of the tool.
+Returns undefined if cannot get the version.
 
   my $version = $obj->current_version(q[mypath/bwa]);
 
@@ -226,6 +222,8 @@ returns undefined if cannot get the version
 =over
 
 =item Moose::Role
+
+item MooseX::Role::Parameterized
 
 =item Moose::Util::TypeConstraints
 
@@ -255,11 +253,19 @@ Please contact the author with any found.
 
 =head1 AUTHOR
 
-Eduard J. Zuiderwijk, E<lt>ejz@sanger.ac.ukE<gt>
+=over
+
+=item Eduard J. Zuiderwijk
+
+=item David K. Jackson
+
+=item Marina Gourtovaia
+
+=back
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2017 Genome Research Ltd
+Copyright (C) 2018 Genome Research Ltd
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
