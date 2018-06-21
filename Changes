@@ -1,8 +1,12 @@
 LIST OF CHANGES
 
-  - in preparation for moving to bwa0_6 as default, added tests which check
+release 51.0
+  - in preparation for moving to bwa0_6 as default bwa version, added tests which check
     that the code works for soft-linked bwa
   - update Ref_Maker to produce indexes for minimap2
+  - npg_common::roles::software_location:
+      parameterise the tools available with software_location
+      fallback to looking on path if tools does not report its own version
 
 release 50.17
   - update travis install
