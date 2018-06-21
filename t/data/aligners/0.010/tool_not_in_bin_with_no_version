@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+cat <<End-of-version-string
+Tool not in bin dir with no version reporting
+End-of-version-string

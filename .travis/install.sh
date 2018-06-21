@@ -17,14 +17,6 @@ sudo apt-get install liblzma-dev # For npg_qc
 
 pushd /tmp
 
-# bwa
-
-git clone --branch ${BWA_VERSION} --depth 1 https://github.com/wtsi-npg/bwa.git bwa
-pushd bwa
-make
-ln -s /tmp/bwa/bwa /tmp/bin/bwa
-popd
-
 # bwa0_6
 
 git clone --branch ${BWA0_6_VERSION} --depth 1 https://github.com/lh3/bwa.git bwa0_6
@@ -131,6 +123,9 @@ wget https://github.com/alexdobin/STAR/archive/${STAR_VERSION}.zip
 unzip ${STAR_VERSION}.zip
 ln -s /tmp/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /tmp/bin/star
 
+# minimap2
+curl -L https://github.com/lh3/minimap2/releases/download/v${MINIMAP2_VERSION}/minimap2-${MINIMAP2_VERSION}_x64-linux.tar.bz2 | tar -jxvf -
+ln -s /tmp/minimap2-${MINIMAP2_VERSION}_x64-linux/minimap2 /tmp/bin/minimap2
 
 popd
 
