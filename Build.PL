@@ -33,6 +33,7 @@ my $requires = {
                 'Moose'                           => '0.93',
                 'Moose::Meta::Class'              => '0',
                 'Moose::Role'                     => '0.93',
+                'MooseX::Role::Parameterized'     => '0',
                 'Moose::Util::TypeConstraints'    => 0,
                 'MooseX::ClassAttribute'          => 0,
                 'MooseX::Storage'                 => 0,

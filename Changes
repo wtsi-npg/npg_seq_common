@@ -1,8 +1,18 @@
 LIST OF CHANGES
 
-  - in preparation for moving to bwa0_6 as default, added tests which check
-    that the code works for soft-linked bwa
+release 51.0
+  - in preparation for moving to bwa0_6 as default bwa version, added tests
+      which check that the code works for soft-linked bwa
   - update Ref_Maker to produce indexes for minimap2
+  - npg_common::roles::software_location:
+      parameterise the tools available with software_location
+      fallback to looking on path if tools does not report its own version
+  - the following no longer used scripts are removed:
+      bin/generate_cached_fastq, src/gcn_maker.d, bin/npg_fastq2fast
+  - npg_common::extractor::fastq - functions for creating a cache of small
+      fastq files and retrieving data from this cached are removed since this
+      functionality has been moved to the stage2 alignment function of the
+      pipeline
 
 release 50.17
   - update travis install

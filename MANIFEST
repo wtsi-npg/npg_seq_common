@@ -15,7 +15,6 @@ bin/base_count_maker
 bin/FastaFormat
 bin/npg_mail_cron_output
 bin/Ref_Maker
-src/gcn_maker.d
 t/00-critic.t
 t/00-distribution.t
 t/00-podcoverage.t
@@ -36,12 +35,15 @@ t/data/1008_1_1.fastq
 t/data/1008_1_2.fastq
 t/data/1008_s_1.fastq
 t/data/2549_1_2.fastqcheck
+t/data/aligners/0.010/bin/tool_in_bin_with_no_version
+t/data/aligners/0.010/tool_not_in_bin_with_no_version
 t/data/aligners/bin/bowtie
 t/data/aligners/bin/bwa
 t/data/aligners/bin/maq
 t/data/aligners/bin/samtools
 t/data/aligners/bin/smalt
 t/data/aligners/bin/stampy.py
+t/data/aligners/bin/tool_with_no_version
 t/data/fastq_split/2518_2_5_merge_part.sam
 t/data/fastq_split/Homo_sapiens.NCBI36.48.dna.all.fa
 t/data/fastq_split/seq_ids.txt

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+cat <<End-of-version-string
+Tool with no way of obtaining version
+End-of-version-string
