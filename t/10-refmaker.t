@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 98;
+use Test::More tests => 114;
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
 use File::Slurp;
@@ -12,7 +12,7 @@ use JSON;
 
 SKIP: {
   skip 'Third party bioinformatics tools required. Set TOOLS_INSTALLED to true to run.',
-    98 unless ($ENV{'TOOLS_INSTALLED'});
+    114 unless ($ENV{'TOOLS_INSTALLED'});
   my $startDir = getcwd();
   my $fastaMaster = 't/data/references/E_coli/K12/fasta/E-coli-K12.fa';
   unless (-e $fastaMaster) {
@@ -75,7 +75,15 @@ SKIP: {
     'star/genomeParameters.txt' => 'f27946102070db744f6f8922d1202b59',
     'star/SA' => '7fbb7e96f3037de8f575576c72ecb67c',
     'star/SAindex' => '60c5b0bb5dbd4692facd7b58318f8f98',
-  );
+    'hisat2/E-coli-K12.fa.1.ht2' => 'a0901c6557cb2c44f44d6da83dea5bed',
+    'hisat2/E-coli-K12.fa.2.ht2' => 'aa8c2b1e74071eb0296fc832e33f5094',
+    'hisat2/E-coli-K12.fa.3.ht2' => 'be250db6550b5e06c6d7c36beeb11707',
+    'hisat2/E-coli-K12.fa.4.ht2' => 'b5a28fd5c0e83d467e6eadb971b3a913',
+    'hisat2/E-coli-K12.fa.5.ht2' => '0ee2cd88aeb62637ea70d8b20c6c6377',
+    'hisat2/E-coli-K12.fa.6.ht2' => '81ccc2b00d3747d4d8f963eea3abe2c0',
+    'hisat2/E-coli-K12.fa.7.ht2' => '9013eccd91ad614d7893c739275a394f',
+    'hisat2/E-coli-K12.fa.8.ht2' => '33cdeccccebe80329f1fdbee7f5874cb',
+    );
 
   ok (-e 'npgqc/E-coli-K12.fa.json', 'json file exists');
 

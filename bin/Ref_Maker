@@ -24,7 +24,7 @@ use npg_tracking::util::abs_path qw(abs_path);
 
 our $VERSION = '0';
 
-Readonly::Array  my @ALIGNERS             => qw{ bowtie bowtie2 bwa bwa0_6 samtools star };
+Readonly::Array  my @ALIGNERS             => qw{ bowtie bowtie2 bwa bwa0_6 hisat2 samtools star };
 Readonly::Scalar my $DIR_PERM             => oct 755;
 Readonly::Scalar my $BWA_ALGORITHM_CUTOFF => 1_200_000_000;
 Readonly::Scalar my $SKIP_STRING => "\n*** Skipping to next aligner ***\n\n";
@@ -43,6 +43,7 @@ sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
         bowtie2     => 0,
         bwa         => 0,
         bwa0_6      => 0,
+        hisat2      => 0,
         longranger  => 0,
         npgqc       => 0,
         picard      => 0,
@@ -87,6 +88,7 @@ sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
     $arguments{'maq'}      = " fasta2bfa $files[0] $files[0].bfa";
     $arguments{'samtools'} = " faidx $files[0]";
     $arguments{'star'}     = " --runMode genomeGenerate --genomeDir ./ --genomeFastaFiles ../fasta/$files[0]";
+    $arguments{'hisat2'}   = "-build ../fasta/$files[0] $files[0]";
 
     my @failed; # record any failures
     my %subs = ();
