@@ -1,9 +1,10 @@
 package npg_common::roles::software_location;
 
 use Moose::Role;
+use MooseX::Role::Parameterized;
 use Moose::Util::TypeConstraints;
 use Carp;
-use File::Spec::Functions qw(catfile);
+use File::Spec::Functions qw(catfile splitdir);
 use File::Which qw(which);
 use IPC::Open3;
 use Perl6::Slurp;
@@ -13,10 +14,10 @@ use npg_tracking::util::abs_path qw(abs_path);
 
 our $VERSION = '0';
 
-Readonly::Array my @TOOLS => qw/bwa bwa0_6 hisat2 samtools samtools_irods bowtie java star/;
+Readonly::Array my @TOOLS => qw/bwa bwa0_6 samtools samtools_irods bowtie java star minimap2 hisat2/;
 
 subtype 'NpgCommonResolvedPathExecutable'
-      => where { (abs_path($_) eq $_) && ( -x ) },
+      => where { ((abs_path($_) || q[]) eq $_) && ( -x ) },
       => as 'Str',
       => message { ($_ || q[]). ' is not an executable' };
 coerce 'NpgCommonResolvedPathExecutable',
@@ -26,7 +27,16 @@ coerce 'NpgCommonResolvedPathExecutable',
                     : which($_) ? abs_path( (which($_))[0] )
                     : croak "no '$_' executable is on the path" };
 
-foreach my $tool ( @TOOLS ) {
+parameter tools => (
+      isa      => 'ArrayRef',
+      required => 1,
+      default  => sub { return [@TOOLS]; },
+);
+
+role {
+  my $p = shift;
+
+  foreach my $tool ( @{$p->tools} ) {
     my $attribute_name = qq[${tool}_cmd];
     has $attribute_name     => (
        is                   => 'ro',
@@ -35,12 +45,9 @@ foreach my $tool ( @TOOLS ) {
        coerce               => 1,
        documentation        => qq[${tool} command, returned resolved to an absolute path to an executable],
     );
-   my $build_method = qq[_build_${attribute_name}];
-   ##no critic (ProhibitNoStrict ProhibitNoWarnings)
-   no strict 'refs';
-   no warnings 'redefine';
-   *{$build_method}= sub{ return $tool; };
-}
+    method qq[_build_${attribute_name}] => sub { return $tool; };
+  }
+};
 
 subtype 'NpgCommonResolvedPathJarFile'
       => where { ( -r ) && (abs_path($_) eq $_) },
@@ -59,19 +66,6 @@ sub _find_jar {
         return abs_path($jar) if (-e $jar);
     }
     return;
-}
-
-sub resolved_paths {
-    my $self = shift;
-    my $predicate_hash = {};
-    foreach my $tool (@TOOLS) {
-        my $accessor = qq[${tool}_cmd];
-        my $method = qq[has_$accessor];
-        if ($self->$method) {
-            $predicate_hash->{$accessor} = $self->$accessor;
-        }
-    }
-    return %{$predicate_hash};
 }
 
 sub current_version {
@@ -95,6 +89,14 @@ sub current_version {
             my $output = slurp($out);
             ($version) = $output =~ m/$regex/igmsx;
             last if defined $version;
+        }
+        if (not defined $version) { # fallback to pulling version from path
+            my @path = splitdir $cmd;
+            pop @path;
+            my $pver = pop @path;
+            if ($pver eq q(bin)) { $pver = pop @path; }
+            # presume path based version must have a digit followed by a "."
+            if ($pver =~ m{[[:digit:]][.]}smxg) { $version = $pver;}
         }
     }
     return $version;
@@ -132,14 +134,39 @@ npg_common::roles::software_location
 
 =head1 SYNOPSIS
 
+Default use
+
   use Moose;
   with 'npg_common::roles::software_location';
 
+  $self->samtools_cmd(); #OK
+  $seld->bwa_cmd();      #OK
+
+Specifying the tools
+
+  use Moose;
+  with 'npg_common::roles::software_location' =>
+    { tools => [qw/samtools/] };
+
+  $self->samtools_cmd(); #OK
+  $seld->bwa_cmd();      #Error, attribute does not exist
+
+  use Moose;
+  with 'npg_common::roles::software_location' =>
+    { tools => [qw/samtools my_tool/] };
+
+  $self->samtools_cmd(); #OK
+  $seld->my_tool_cmd();  #OK  
+
 =head1 DESCRIPTION
 
-Heuristic for finding at run time installed third-party tools 
+Heuristic for finding at run time installed third-party tools.
 
 =head1 SUBROUTINES/METHODS
+
+Attributes for individial tools listed below are available by default.
+If an array of tools is specified via the tools parameter, only
+the commands for tools in this array are available.
 
 =head2 samtools_cmd
 
@@ -159,18 +186,13 @@ defaults to "bwa" found on the path
 =head2 bwa0_6_cmd
 
 bwa0_6 resolved to an absolute path to an executable;
-defaults to "bwa0_6" found on the path
+defaults to "bwa0_6" found on the path.
 Represents bwa version 0.6 or above.
 
 =head2 bowtie_cmd
 
 bowtie command resolved to an absolute path to an executable;
-defaults to "bowtie" found on the path
-
-=head2 bcftools_cmd
-
-bcftools command resolved to an absolute path to an executable;
-defaults to "bcftools" found on the path
+defaults to "bowtie" found on the path.
 
 =head2 java_cmd
 
@@ -179,20 +201,17 @@ java command resolved to an absolute path
 =head2 star_cmd
 
 star command resolved to an absolute path to an executable;
-defaults to "star" found on the path
+defaults to "star" found on the path.
 
-=head2 find_jar
+=head2 minimap2_cmd
 
-find a named jar on the current jar_path
-
-=head2 resolved_paths
-
-returns a hash with accessors which are set 
+minimap2 command resolved to an absolute path to an executable;
+defaults to "minimap2" found on the path.
 
 =head2 current_version
 
-given a tool command, returns the version of the tool
-returns undefined if cannot get the version
+Given a full path tool command, returns the version of the tool.
+Returns undefined if cannot get the version.
 
   my $version = $obj->current_version(q[mypath/bwa]);
 
@@ -203,6 +222,8 @@ returns undefined if cannot get the version
 =over
 
 =item Moose::Role
+
+item MooseX::Role::Parameterized
 
 =item Moose::Util::TypeConstraints
 
@@ -232,11 +253,19 @@ Please contact the author with any found.
 
 =head1 AUTHOR
 
-Eduard J. Zuiderwijk, E<lt>ejz@sanger.ac.ukE<gt>
+=over
+
+=item Eduard J. Zuiderwijk
+
+=item David K. Jackson
+
+=item Marina Gourtovaia
+
+=back
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2017 Genome Research Ltd
+Copyright (C) 2018 Genome Research Ltd
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

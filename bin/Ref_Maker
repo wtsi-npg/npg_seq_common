@@ -24,7 +24,7 @@ use npg_tracking::util::abs_path qw(abs_path);
 
 our $VERSION = '0';
 
-Readonly::Array  my @ALIGNERS             => qw{ bowtie bowtie2 bwa bwa0_6 hisat2 samtools star };
+Readonly::Array  my @ALIGNERS             => qw{ bowtie bowtie2 bwa0_6 hisat2 minimap2 samtools star };
 Readonly::Scalar my $DIR_PERM             => oct 755;
 Readonly::Scalar my $BWA_ALGORITHM_CUTOFF => 1_200_000_000;
 Readonly::Scalar my $SKIP_STRING => "\n*** Skipping to next aligner ***\n\n";
@@ -41,10 +41,10 @@ sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
         blat        => 0,
         bowtie      => 0,
         bowtie2     => 0,
-        bwa         => 0,
         bwa0_6      => 0,
         hisat2      => 0,
         longranger  => 0,
+        minimap2    => 0,
         npgqc       => 0,
         picard      => 0,
         samtools    => 0,
@@ -79,13 +79,12 @@ sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
     # For files between 10MB and 2GB either can be used.
     my $bwa_algorithm = ( $ref_size > $BWA_ALGORITHM_CUTOFF ) ? 'bwtsw' : 'is';
 
-
     # Build the conversion arguments.
     $arguments{'bowtie'}   = "-build -f -q $files[0] $files[0]";
     $arguments{'bowtie2'}  = "-build $files[0] $files[0]";
-    $arguments{'bwa'}      = " index -p $files[0] -a $bwa_algorithm $files[0]";
     $arguments{'bwa0_6'}   = " index -p $files[0] -a $bwa_algorithm $files[0]";
     $arguments{'maq'}      = " fasta2bfa $files[0] $files[0].bfa";
+    $arguments{'minimap2'} = " -x sr -d $files[0].mmi $files[0]";
     $arguments{'samtools'} = " faidx $files[0]";
     $arguments{'star'}     = " --runMode genomeGenerate --genomeDir ./ --genomeFastaFiles ../fasta/$files[0]";
     $arguments{'hisat2'}   = "-build ../fasta/$files[0] $files[0]";
