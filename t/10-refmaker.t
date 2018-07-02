@@ -1,6 +1,6 @@
 
 use warnings;
-use Test::More tests => 92;
+use Test::More tests => 100;
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
 use File::Slurp;
@@ -12,7 +12,7 @@ use JSON;
 
 SKIP: {
   skip 'Third party bioinformatics tools required. Set TOOLS_INSTALLED to true to run.',
-    92 unless ($ENV{'TOOLS_INSTALLED'});
+    100 unless ($ENV{'TOOLS_INSTALLED'});
   my $startDir = getcwd();
   my $fastaMaster = 't/data/references/E_coli/K12/fasta/E-coli-K12.fa';
   unless (-e $fastaMaster) {
