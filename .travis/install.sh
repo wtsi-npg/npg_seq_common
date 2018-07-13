@@ -124,8 +124,15 @@ unzip ${STAR_VERSION}.zip
 ln -s /tmp/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /tmp/bin/star
 
 # minimap2
+
 curl -L https://github.com/lh3/minimap2/releases/download/v${MINIMAP2_VERSION}/minimap2-${MINIMAP2_VERSION}_x64-linux.tar.bz2 | tar -jxvf -
 ln -s /tmp/minimap2-${MINIMAP2_VERSION}_x64-linux/minimap2 /tmp/bin/minimap2
+
+# hisat2
+
+wget ftp://ftp.ccb.jhu.edu/pub/infphilo/hisat2/downloads/hisat2-${HISAT2_VERSION}-Linux_x86_64.zip
+unzip hisat2-${HISAT2_VERSION}-Linux_x86_64.zip
+ln -s /tmp/hisat2-${HISAT2_VERSION}/hisat2-build /tmp/bin/hisat2-build
 
 popd
 
