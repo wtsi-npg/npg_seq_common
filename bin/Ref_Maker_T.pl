@@ -9,12 +9,13 @@ use English qw(-no_match_vars);
 use File::chdir;
 use File::Path qw(make_path remove_tree);
 use File::Basename;
+use File::Copy;
 use IO::File;
 use Getopt::Long;
 use List::Util qw(sum none);
 use autodie qw(:all);
 use Readonly;
-use Pod::Usage;
+use Pod::Usage qw(pod2usage);
 use feature qw(say);
 use POSIX qw(strftime);
 use npg_tracking::util::abs_path qw(abs_path);
@@ -35,45 +36,44 @@ Readonly::Scalar my $DICT_FILE_REGEX => qr{[.]dict\Z}imsx;
 Readonly::Array  my @GENCODE_GENE_TYPE => qw{gene transcript  exon  CDS
                                              UTR  start_codon  stop_codon};
 
-my ($help, $working_dir, @files, $dh);
+my ($help, $verbose);
+my ($working_dir, @files, $dh, $ref_genome_dir, $bt2_dir, $dict_dir);
 my $annotation_dir = $DEFAULT_ANNOT_DIR;
-my $ref_genome_dir = q{};
-my $bt2_dir = q{};
-my $dict_dir = q{};
 my $rate_valid = $MIN_RATE;
 my $save_discarded = 0;
 my ($ref_genome_name, $ref_genome_file_abs_path, $bt2_index_name, $ref_dict_namex);
+
+
+my %build = (
+    'rna_seqc'   => 0,
+    'tophat2'    => 0,
+    'fasta'      => 0,
+    'salmon'     => 0,
+    'cellranger' => 0,
+    'salmon0_10' => 0,
+    'salmon0_8'  => 0,
+);
+
+if (! @ARGV) { pod2usage(2) };
+GetOptions(
+    \%build,
+    keys %build,
+    'annotation=s'           => \$annotation_dir,
+    'bowtie2=s'              => \$bt2_dir,
+    'dictionary=s'           => \$dict_dir,
+    'genome=s'               => \$ref_genome_dir,
+    'help'                   => \$help,
+    'rate_valid_rnaseqc=s'   => \$rate_valid,
+    'save_discarded_rnaseqc' => \$save_discarded,
+) || pod2usage(2);
+if ($help) {pod2usage(0);}
 
 my $status = main();
 
 exit $status;
 
 
-sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
-
-    my %build = (
-        'rna_seqc'=> 0,
-        'tophat2' => 0,
-        'fasta'   => 0,
-        'salmon'  => 0,
-        'ten_x'   => 0,
-        #TODO: 'salmon0_10' => 0,
-    );
-
-    GetOptions(
-        \%build,
-        keys %build,
-        'annotation=s' => \$annotation_dir,
-        'bowtie2=s' => \$bt2_dir,
-        'dictionary=s' => \$dict_dir,
-        'genome=s' => \$ref_genome_dir,
-        'help' => \$help,
-        'rate_valid_rnaseqc=s' => \$rate_valid,
-        'save_discarded_rnaseqc' => \$save_discarded,
-    ) or croak 'Error in command line arguments';
-
-    if ($help) {pod2usage(0);}
-
+sub main {
     my @genome = inspect_dir($ref_genome_dir, $FASTA_FILE_REGEX);
     if (! @genome) {
         croak 'No reference genome directory found.';
@@ -91,13 +91,13 @@ sub main { ##no critic (Subroutines::ProhibitExcessComplexity)
 
     my (%arguments, %index_command, @failed, @passed, %subs);
     # Build the indexing arguments
-    $subs{'fasta'} = \&fasta;
-    $subs{'rna_seqc'} = \&rna_seqc;
-    $subs{'salmon0_8'} = \&salmon;
-#    $subs{'salmon0_10'} = \&salmon;
-    $subs{'salmon'} = \&salmon_latest;
-    $subs{'ten_x'} = \&ten_x;
-    $subs{'tophat2'} = \&tophat2;
+    $subs{'fasta'}      = \&fasta;
+    $subs{'rna_seqc'}   = \&rna_seqc;
+    $subs{'salmon0_8'}  = \&salmon;
+    $subs{'salmon0_10'} = \&salmon;
+    $subs{'salmon'}     = \&salmon_latest;
+    $subs{'cellranger'} = \&cellranger;
+    $subs{'tophat2'}    = \&tophat2;
 
     # Iterate over subs for aligners/tools that
     # require more than a standard command
@@ -135,7 +135,7 @@ sub clean_slate {
 sub create_symlink{
     my($source, $target, $tool) = @_;
     if (!-e $source || (lstat $source && ! stat $source)) {
-        say qq{**** symlinking $source failed: No such file or directory or broken link};
+        carp qq{**** symlinking $source failed: No such file or directory or broken link};
         return 0;
     }
     eval {
@@ -143,7 +143,7 @@ sub create_symlink{
         symlink $source, $target;
         1;
     } or do {
-        say qq{**** symlinking $target file failed: $EVAL_ERROR $SKIP_STRING};
+        carp qq{**** symlinking $target file failed: $EVAL_ERROR $SKIP_STRING};
         return 0;
     };
     return 1;
@@ -156,7 +156,7 @@ sub execute_command {
         system $tool_command;
         1;
     } or do {
-        say qq{*** $tool execution failed: $EVAL_ERROR $SKIP_STRING};
+        carp qq{*** $tool execution failed: $EVAL_ERROR $SKIP_STRING};
         log_timestamp('abort', $tool);
         return 0;
     };
@@ -192,12 +192,61 @@ sub log_timestamp {
 ####################
 
 
+sub cellranger {
+    log_timestamp('start', 'Cellranger');
+    clean_slate('10X');
+
+    my @gtf = inspect_dir($annotation_dir, $GTF_FILE_REGEX);
+    if (! @gtf) { 
+        carp 'Nor gtf or a different annotation directory were found.';
+        log_timestamp('abort', 'Cellranger');
+        return 0;
+    } elsif (scalar @gtf != 1) {
+        carp 'One and only one file in gtf format file is expected.';
+        log_timestamp('abort', 'Cellranger');
+        return 0;
+    }
+    my $gtf_file_abs_path = abs_path(qq{$annotation_dir/$gtf[0]});
+    my $gtf_name = fileparse($gtf_file_abs_path, $GTF_FILE_REGEX);
+
+    say q{*** Cellranger index creation: creating tmp filtered gtf};
+    my $cellranger_command = qq{cellranger mkgtf $gtf_file_abs_path }.
+        qq{tmp.$gtf_name-filtered.gtf }.
+        qq{--attribute=gene_biotype:protein_coding};
+
+    if(execute_command('cellranger - mkgtf', $cellranger_command)){
+        say q{*** Cellranger index creation: creating ref index};
+        $cellranger_command = qq{cellranger mkref }.
+            qq{--genome=10X }.
+            qq{--fasta=$ref_genome_file_abs_path }.
+            qq{--genes=tmp.$gtf_name-filtered.gtf}.
+            qq{--nthreads=16 --memgb=32}; #TODO: this will be documented in the POD but
+                                          #      there should be a better way than hard-coded
+        if(execute_command('cellranger - mkgtf', $cellranger_command)){
+            say q{*** Cellranger index creation: clean up};
+            make_path(q{10X/logs}, { mode => $DIR_PERM });
+            move(q{Log.out}, q{10X/logs/cellranger_mkref_Log.out});
+            move(q{cellranger_mkref.log}, q{10X/logs/});
+            move(q{cellranger_mkgtf.log}, q{10X/logs/});
+            unlink qq{tmp.$gtf_name-filtered.gtf};
+        } else {
+            return 0;
+        }
+    } else {
+        return 0;
+    };
+    log_timestamp('stop', 'Cellranger');
+
+    return 1;
+}
+
+
 sub fasta {
     log_timestamp('start', 'fasta');
 
     my @gtf_or_gff = inspect_dir($annotation_dir, $GTF_GFF_FILE_REGEX);
     if (! @gtf_or_gff) { 
-        say 'Nor gtf or a different annotation directory were found.';
+        carp q{Nor gtf or a different annotation directory were found.};
         log_timestamp('abort', 'fasta');
         return 0;
     }
@@ -223,11 +272,11 @@ sub rna_seqc{
 
     my @gtf = inspect_dir($annotation_dir, $GTF_FILE_REGEX);
     if (! @gtf) { 
-        say 'Nor gtf or a different annotation directory were found.';
+        carp 'Nor gtf or a different annotation directory were found.';
         log_timestamp('abort', 'RNA-SeQC');
         return 0;
     } elsif (scalar @gtf != 1) {
-        say 'One and only one file in gtf format file is expected.';
+        carp 'One and only one file in gtf format file is expected.';
         log_timestamp('abort', 'RNA-SeQC');
         return 0;
     }
@@ -236,8 +285,8 @@ sub rna_seqc{
 
     my @dict = inspect_dir($dict_dir, $DICT_FILE_REGEX);
     if (! @dict) {
-        say q{Path to reference dictionary file required }.
-            q{when creating RNA-SeQC annotation.};
+        carp q{Path to reference dictionary file required }.
+             q{when creating RNA-SeQC annotation.};
         log_timestamp('abort', 'RNA-SeQC');
         return 0;
     }
@@ -309,10 +358,10 @@ sub rna_seqc{
         qq{$not_gencode_gene_type\n};
 
     if ($error_rate < $rate_valid) {
-        say qq{*** RNA-SeQC annotation creation: }.
-            qq{far too many records discarded.\n}.
-            qq{*** Minimum acceptable rate = $rate_valid. }.
-            qq{To adjust, use option --rate=<minimum rate>};
+        carp qq{*** RNA-SeQC annotation creation: }.
+             qq{far too many records discarded.\n}.
+             qq{*** Minimum acceptable rate = $rate_valid. }.
+             qq{To adjust, use option --rate=<minimum rate>};
         log_timestamp('abort', 'RNA-SeQC');
         return 0;
     }
@@ -341,8 +390,8 @@ sub salmon {
                 qq{no transcriptome reference fasta file present.};
             $ref_transcriptome_exists = 0;
         } elsif (scalar @fasta > 1) {
-            say qq{*** $salmon_version index creation failed: }.
-                qq{One and only one transcriptome reference fasta file expected.};
+            carp qq{*** $salmon_version index creation failed: }.
+                 qq{One and only one transcriptome reference fasta file expected.};
             log_timestamp('abort', $salmon_version);
             return 0;
         }
@@ -377,14 +426,6 @@ sub salmon_latest {
         log_timestamp('abort', 'salmon (latest)');
         return 0;
     }
-}
-
-
-sub ten_x {
-    log_timestamp('start', '10X');
-    # stub
-    log_timestamp('abort', '10X - Not Implemented');
-    return 0;
 }
 
 
@@ -436,8 +477,8 @@ an index or an auxiliary file.
 
 Change cwd to parent directory of 'gtf' subdirectory in the transcriptome
 repository. Alternatively, provide a path to the annotation file in
-GTF22/GFF3 format. Most, if not all tools require a path to the reference
-genome in fasta format.
+GTF22/GFF3 format. Most tools require a path to the reference genome in
+fasta format so this is a required argument.
 
     C<perl Ref_Maker_T --genome=/path/to/ref/ [options]>
     C<perl Ref_Maker_T --genome=/path/to/ref/ --annotation=/path/to/annotation/ [options]>
@@ -458,10 +499,13 @@ Produce various transcriptome index or auxiliary files required by NPG.
 
 =head1 USAGE
 
-To run under LSF you need to reserve memory. 5.5 times the size of the fasta
+Tl;dr: Under LSF reserve at least 35GB of memory and 16 cores.
+
+To run under LSF you need to reserve memory as well as multiple cores for
+multi-threading. Requesting memory 5.5 times the size of the fasta
 file should be safe. E.g. for a 1Gb genome, the syntax is:
 
-bsub -M5500 -R'select[mem>5500] rusage[mem=5500]' perl Ref_Maker_T
+bsub -n 16 -M5500 -R'select[mem>5500] rusage[mem=5500] span[hosts=1]' perl Ref_Maker_T
 
 Most vertebrate genomes should be run on the 'long' queue. Smaller genomes
 will be fine on 'normal'.
