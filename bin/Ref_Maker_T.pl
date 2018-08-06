@@ -475,40 +475,39 @@ an index or an auxiliary file.
 
 =head1 SYNOPSIS
 
-Change cwd to parent directory of 'gtf' subdirectory in the transcriptome
-repository. Alternatively, provide a path to the annotation file in
-GTF22/GFF3 format. Most tools require a path to the reference genome in
-fasta format so this is a required argument.
+Change CWD to parent directory of 'gtf' subdirectory in the
+transcriptome repository. Alternatively, provide a path to the
+annotation file in GTF2/GFF3 format to build the gtf file that will
+be used by the other tools. A path to the reference genome in fasta
+format is always required.
 
-    C<perl Ref_Maker_T --genome=/path/to/ref/ [options]>
-    C<perl Ref_Maker_T --genome=/path/to/ref/ --annotation=/path/to/annotation/ [options]>
+  perl Ref_Maker_T --genome=/path/to/ref/ [options]
+  perl Ref_Maker_T --genome=/path/to/ref/ --annotation=/path/to/annotation/ [options]
 
-If you specify tools as arguments only those index/annotation files
-will be built.
+If you pass tool names as arguments only the indexes or auxiliary files
+of those will be built.
 
-    C<perl Ref_Maker_T --genome=/path/to/ref/ --salmon>
+  perl Ref_Maker_T --genome=/path/to/ref/ --salmon --salmon0_8
 
 Some tools need to know the path to specific files to work. E.g.
-Tophat2, needs the path where to find approriate bowtie2-index files.
+Tophat2, requires a path where appropriate bowtie2-index files exist.
 
-    C<perl Ref_Maker_T --genome=/path/to/ref/ --bowtie2=/path/to/bt2/ --tophat2>
+  perl Ref_Maker_T --genome=/path/to/ref/ --bowtie2=/path/to/bt2/ --tophat2
 
-=head1 DESCRIPTION
+Under LSF (tl;dr) if running all of the tools, reserve at least 35GB
+of memory and 16 cores.
 
-Produce various transcriptome index or auxiliary files required by NPG.
+To run under LSF you need to reserve memory as well as multiple cores
+for multi-threading. However, resource requirements vary a lot
+from tool to tool. If running all of the tools at once, follow the
+above recommendation. When running specific tools, those that build
+indexes (e.g. Cellranger), requesting memory 12-15 times the size of
+the fasta file should be safe. But for tools that build auxiliary
+files only (e.g. RNA-SeQC, gtf) then memory requirements are minimal,
+4Gb should be enough. E.g. for a do-all run of a mouse genome, syntax
+would be:
 
-=head1 USAGE
-
-Tl;dr: Under LSF reserve at least 35GB of memory and 16 cores.
-
-To run under LSF you need to reserve memory as well as multiple cores for
-multi-threading. Requesting memory 5.5 times the size of the fasta
-file should be safe. E.g. for a 1Gb genome, the syntax is:
-
-bsub -n 16 -M5500 -R'select[mem>5500] rusage[mem=5500] span[hosts=1]' perl Ref_Maker_T
-
-Most vertebrate genomes should be run on the 'long' queue. Smaller genomes
-will be fine on 'normal'.
+  bsub -n 16 -M35000 -R'select[mem>35000] rusage[mem=35000] span[hosts=1]' perl Ref_Maker_T --genome=/path/to/ref/
 
 =head1 SUBROUTINES/METHODS
 
@@ -553,6 +552,8 @@ Create a symlink between a source and target.
 =item File::chdir
 
 =item File::Path
+
+=item File::Copy
 
 =item FindBin
 
