@@ -24,49 +24,57 @@ our $VERSION = '0';
 
 Readonly::Scalar my $DIR_PERM => oct 755;
 Readonly::Scalar my $SKIP_STRING => "\n*** Skipping to next aligner ***\n\n";
-Readonly::Scalar my $LATEST_SALMON => "salmon0_8";
-Readonly::Scalar my $DEFAULT_ANNOT_DIR => q{gtf};
+Readonly::Scalar my $LATEST_SALMON => "salmon0_10";
+Readonly::Scalar my $DEFAULT_ANNOT_DIR => q[gtf];
 Readonly::Scalar my $ONE_HUNDRED => 100;
 Readonly::Scalar my $MIN_RATE => 0.5;
+Readonly::Scalar my $MAX_LINES => 10;
 Readonly::Scalar my $FASTA_FILE_REGEX => qr{[.]f(?:ast|n)?a\Z}imsx;
 Readonly::Scalar my $GTF_FILE_REGEX => qr{[.]gtf\Z}imsx;
-Readonly::Scalar my $GTF_GFF_FILE_REGEX => qr{[.]g(?:tf|ff\Z)}imsx;
+Readonly::Scalar my $GTF_GFF_FILE_REGEX => qr{[.]g(?:t|f)f3?\Z}imsx;
 Readonly::Scalar my $BT2_FILE_REGEX => qr{(?<![.]rev)[.][1-9]+[.]bt2\Z}imsx;
 Readonly::Scalar my $DICT_FILE_REGEX => qr{[.]dict\Z}imsx;
-Readonly::Array  my @GENCODE_GENE_TYPE => qw{gene transcript  exon  CDS
-                                             UTR  start_codon  stop_codon};
+Readonly::Scalar my $GENCODE_ATTR_REGEX => qr{\A(?:\s*(?:.+)\s\"(?:.+)\";)+\Z}ismx;
+
+# All the tools that can be passed as options must be listed here.
+# Explicit order is necessary for some tools (e.g. Salmon: oldest -> newest)
+Readonly::Array  my @TOOLS => qw{
+                        cellranger
+                        fasta
+                        gtf
+                        rna_seqc
+                        salmon0_8
+                        salmon0_10
+                        salmon
+                        tophat2
+                    };
+
 
 my ($help, $verbose);
-my ($working_dir, @files, $dh, $ref_genome_dir, $bt2_dir, $dict_dir);
-my $annotation_dir = $DEFAULT_ANNOT_DIR;
+my ($working_dir, $ref_genome_dir, $annotation_dir, $bt2_dir, $dict_dir);
 my $rate_valid = $MIN_RATE;
 my $save_discarded = 0;
-my ($ref_genome_name, $ref_genome_file_abs_path, $bt2_index_name, $ref_dict_namex);
 
+my %build = map { $_ => 0 } @TOOLS;
 
-my %build = (
-    'rna_seqc'   => 0,
-    'tophat2'    => 0,
-    'fasta'      => 0,
-    'salmon'     => 0,
-    'cellranger' => 0,
-    'salmon0_10' => 0,
-    'salmon0_8'  => 0,
-);
-
-if (! @ARGV) { pod2usage(2) };
+pod2usage(2) if (! @ARGV);
 GetOptions(
     \%build,
     keys %build,
-    'annotation=s'           => \$annotation_dir,
-    'bowtie2=s'              => \$bt2_dir,
-    'dictionary=s'           => \$dict_dir,
-    'genome=s'               => \$ref_genome_dir,
-    'help'                   => \$help,
-    'rate_valid_rnaseqc=s'   => \$rate_valid,
-    'save_discarded_rnaseqc' => \$save_discarded,
+    'annotation=s'            => \$annotation_dir,
+    'bowtie2=s'               => \$bt2_dir,
+    'dictionary=s'            => \$dict_dir,
+    'genome=s'                => \$ref_genome_dir,
+    'help'                    => \$help,
+    'rate_valid_rna_seqc=s'   => \$rate_valid,
+    'save_discarded_rna_seqc' => \$save_discarded,
 ) || pod2usage(2);
-if ($help) {pod2usage(0);}
+pod2usage(0) if $help;
+
+# if no tools were specified do all
+if (sum( values %build ) == 0) {
+    foreach my $k (keys %build) { $build{$k} = 1; }
+}
 
 my $status = main();
 
@@ -76,34 +84,47 @@ exit $status;
 sub main {
     my @genome = inspect_dir($ref_genome_dir, $FASTA_FILE_REGEX);
     if (! @genome) {
-        croak 'No reference genome directory found.';
+        croak qq[Cannot access $ref_genome_dir: no such directory];
     } elsif (scalar @genome != 1){
-        croak 'One and only one fasta file expected.';
+        croak q[One and only one fasta file expected.];
     }
-    $ref_genome_file_abs_path = abs_path(qq{$ref_genome_dir/$genome[0]});
-    $ref_genome_name = fileparse($ref_genome_file_abs_path, $FASTA_FILE_REGEX);
+    my $ref_genome_file_abs_path = abs_path(qq[$ref_genome_dir/$genome[0]]);
+
+    my @annotation = inspect_dir($annotation_dir, $GTF_GFF_FILE_REGEX);
+    if (! @annotation) { 
+        croak qq[Cannot access $annotation_dir: no such directory];
+    } elsif (scalar @annotation != 1){
+        croak q[One and only one annotation file expected.];
+    }
+    my $annot_file_abs_path = abs_path(qq[$annotation_dir/$annotation[0]]);
 
     $working_dir = $CWD;
 
-    if ( sum( values %build ) == 0 ) {
-        foreach my $k ( keys %build ) { $build{$k} = 1; }
-    }
-
     my (%arguments, %index_command, @failed, @passed, %subs);
+
     # Build the indexing arguments
+    $subs{'cellranger'} = \&cellranger;
     $subs{'fasta'}      = \&fasta;
     $subs{'rna_seqc'}   = \&rna_seqc;
     $subs{'salmon0_8'}  = \&salmon;
     $subs{'salmon0_10'} = \&salmon;
     $subs{'salmon'}     = \&salmon_latest;
-    $subs{'cellranger'} = \&cellranger;
     $subs{'tophat2'}    = \&tophat2;
 
-    # Iterate over subs for aligners/tools that
-    # require more than a standard command
-    foreach my $tool (keys %subs) {
+    # Create common annotation in local gtf directory first then
+    # remove it from the build list in case it's there via CLI
+    if (! gtf('gtf', $ref_genome_file_abs_path, $annot_file_abs_path)) {
+        croak q[Failed to create custom annotation gtf.];
+    } else {
+        push @passed, 'gtf';
+    }
+    delete $build{'gtf'};
+    $CWD = $working_dir;
+
+    # Iterate over subs for aligners/tools
+    foreach my $tool (@TOOLS){
         if ($build{$tool}) {
-            if (!$subs{$tool}->($tool)) {
+            if (!$subs{$tool}->($tool, $ref_genome_file_abs_path)) {
                 push @failed, $tool;
             } else {
                 push @passed, $tool;
@@ -112,15 +133,7 @@ sub main {
         }
     }
 
-    if (@failed) {
-        my $message = 'WARNING: Task(s) failed, see Ref_Maker_T output for '.
-            'details: '.join(', ', @failed)."\n";
-        print {*STDERR} $message or carp $OS_ERROR;
-        return 1;
-    } else {
-        return 0;
-    }
-
+    return 1;
 }
 
 
@@ -135,7 +148,7 @@ sub clean_slate {
 sub create_symlink{
     my($source, $target, $tool) = @_;
     if (!-e $source || (lstat $source && ! stat $source)) {
-        carp qq{**** symlinking $source failed: No such file or directory or broken link};
+        carp qq[**** symlinking $source failed: No such file or directory or broken link];
         return 0;
     }
     eval {
@@ -143,7 +156,7 @@ sub create_symlink{
         symlink $source, $target;
         1;
     } or do {
-        carp qq{**** symlinking $target file failed: $EVAL_ERROR $SKIP_STRING};
+        carp qq[**** symlinking $target file failed: $EVAL_ERROR $SKIP_STRING];
         return 0;
     };
     return 1;
@@ -156,11 +169,9 @@ sub execute_command {
         system $tool_command;
         1;
     } or do {
-        carp qq{*** $tool execution failed: $EVAL_ERROR $SKIP_STRING};
-        log_timestamp('abort', $tool);
+        carp qq[*** $tool execution failed: $EVAL_ERROR $SKIP_STRING];
         return 0;
     };
-    log_timestamp('stop', $tool);
     return 1;
 }
 
@@ -186,116 +197,187 @@ sub log_timestamp {
     return;
 }
 
-
+sub get_common_gtf {
+    # get annotation from local gtf directory
+    $CWD = $working_dir;
+    my @gtf = inspect_dir(q[gtf], $GTF_FILE_REGEX);
+    if (! @gtf) {
+        croak qq[Cannot access common annotation file in $CWD];
+    }
+    my $gtf_abs_path = abs_path(qq[gtf/$gtf[0]]);
+    return $gtf_abs_path;
+}
 ####################
 # Tool methods
 ####################
 
 
 sub cellranger {
-    log_timestamp('start', 'Cellranger');
-    clean_slate('10X');
+    my ($tool, $genome_abs_path) = @_;
 
-    my @gtf = inspect_dir($annotation_dir, $GTF_FILE_REGEX);
-    if (! @gtf) { 
-        carp 'Nor gtf or a different annotation directory were found.';
-        log_timestamp('abort', 'Cellranger');
-        return 0;
-    } elsif (scalar @gtf != 1) {
-        carp 'One and only one file in gtf format file is expected.';
-        log_timestamp('abort', 'Cellranger');
-        return 0;
-    }
-    my $gtf_file_abs_path = abs_path(qq{$annotation_dir/$gtf[0]});
-    my $gtf_name = fileparse($gtf_file_abs_path, $GTF_FILE_REGEX);
+#    $CWD = $working_dir;
 
-    say q{*** Cellranger index creation: creating tmp filtered gtf};
-    my $cellranger_command = qq{cellranger mkgtf $gtf_file_abs_path }.
-        qq{tmp.$gtf_name-filtered.gtf }.
-        qq{--attribute=gene_biotype:protein_coding};
+    log_timestamp('start', $tool);
+
+    my $annotation_abs_path = get_common_gtf;
+    my $gtf_name = fileparse($annotation_abs_path, $GTF_FILE_REGEX);
+
+    ( -e '10X' ) && remove_tree('10X');
+
+    say q[*** Cellranger index creation: creating tmp filtered gtf];
+    my $cellranger_command = qq[cellranger mkgtf $annotation_abs_path ].
+        qq[tmp.$gtf_name-filtered.gtf ].
+        qq[--attribute=gene_biotype:protein_coding];
 
     if(execute_command('cellranger - mkgtf', $cellranger_command)){
-        say q{*** Cellranger index creation: creating ref index};
-        $cellranger_command = qq{cellranger mkref }.
-            qq{--genome=10X }.
-            qq{--fasta=$ref_genome_file_abs_path }.
-            qq{--genes=tmp.$gtf_name-filtered.gtf}.
-            qq{--nthreads=16 --memgb=32}; #TODO: this will be documented in the POD but
+        say q[*** Cellranger index creation: creating ref index];
+        $cellranger_command = qq[cellranger mkref ].
+            qq[--genome=10X ].
+            qq[--fasta=$genome_abs_path ].
+            qq[--genes=tmp.$gtf_name-filtered.gtf ].
+            qq[--nthreads=16 --memgb=32]; #TODO: this will be documented in the POD but
                                           #      there should be a better way than hard-coded
         if(execute_command('cellranger - mkgtf', $cellranger_command)){
-            say q{*** Cellranger index creation: clean up};
-            make_path(q{10X/logs}, { mode => $DIR_PERM });
-            move(q{Log.out}, q{10X/logs/cellranger_mkref_Log.out});
-            move(q{cellranger_mkref.log}, q{10X/logs/});
-            move(q{cellranger_mkgtf.log}, q{10X/logs/});
-            unlink qq{tmp.$gtf_name-filtered.gtf};
+            say q[*** Cellranger index creation: clean up];
+            make_path(q[10X/logs], { mode => $DIR_PERM });
+            move(q[Log.out], q[10X/logs/cellranger_mkref_Log.out]);
+            move(q[cellranger_mkref.log], q[10X/logs/]);
+            move(q[cellranger_mkgtf.log], q[10X/logs/]);
+            unlink qq[tmp.$gtf_name-filtered.gtf];
+            chmod $DIR_PERM, q[10X];
         } else {
+            log_timestamp('abort', 'cellranger - mkgtf');
             return 0;
         }
     } else {
+        log_timestamp('abort', 'cellranger - mkref');
         return 0;
     };
-    log_timestamp('stop', 'Cellranger');
 
+    log_timestamp('stop', $tool);
     return 1;
 }
 
 
 sub fasta {
-    log_timestamp('start', 'fasta');
+    my ($tool, $genome_abs_path) = @_;
 
-    my @gtf_or_gff = inspect_dir($annotation_dir, $GTF_GFF_FILE_REGEX);
-    if (! @gtf_or_gff) { 
-        carp q{Nor gtf or a different annotation directory were found.};
-        log_timestamp('abort', 'fasta');
+#    $CWD = $working_dir;
+    log_timestamp('start', $tool);
+    clean_slate('fasta');
+
+    my $annotation_abs_path = get_common_gtf;
+    my $genome_name = fileparse($genome_abs_path, $FASTA_FILE_REGEX);
+
+    my $fasta_command = qq[gffread -w fasta/$genome_name.transcripts.fa ].
+                        qq[-g $genome_abs_path $annotation_abs_path];
+
+    if(! execute_command('fasta', $fasta_command)){
+        log_timestamp('abort', $tool);
         return 0;
     }
-    my $annot_file_abs_path = abs_path(qq{$annotation_dir/$gtf_or_gff[0]});
     
-    clean_slate('fasta');
-    $CWD = q{./fasta};
-
-    my $executable = q{gffread};
-    my $fasta_command = qq{$executable -w $ref_genome_name.transcripts.fa }.
-                        qq{-g $ref_genome_file_abs_path $annot_file_abs_path};
-    return execute_command('fasta', $fasta_command);
+    log_timestamp('stop', $tool);
+    return 1;
 }
 
 
-sub rna_seqc{
+sub gtf {
+    my ($tool, $genome_abs_path, $annotation_abs_path) = @_;
+
+    log_timestamp('start', $tool);
+
+    my $annotation_name = fileparse($annotation_abs_path, $GTF_GFF_FILE_REGEX);
+    my $putative_gtf_abs_path = abs_path(qq[gtf/$annotation_name.gtf]) // q[];
+    if($annotation_abs_path eq $putative_gtf_abs_path) {
+        carp qq[*** Ref annotation gtf creation: ].
+             qq[Source and target annotation files are the same: nothing else to do here];
+        log_timestamp('stop', $tool);
+        return 1;
+    }
+
+    clean_slate('gtf');
+    $CWD = q[./gtf];
+
+    # verify whether annotation file
+    # is in GTF format or not
+    my $gtf_format = 0;
+    my $num_lines = 0;
+    my $fh_probe_annot = IO::File->new($annotation_abs_path, 'r');
+    while (my $line = $fh_probe_annot->getline) {
+        next if ($line =~ /\A\#/smx);
+        my @columns = split /\t/smx, $line;
+        if (scalar @columns >= 9){
+            if ($columns[8] =~ $GENCODE_ATTR_REGEX){
+                $gtf_format += 1;
+            }
+        }
+        $num_lines += 1;
+        last if ($num_lines >= $MAX_LINES || ($gtf_format >= $MAX_LINES));
+    }
+    $fh_probe_annot->close();
+
+    # if the annotation file is in GTF format,
+    # copy it and move on ...
+    if ($gtf_format >= $MAX_LINES){
+        carp qq[*** Ref annotation gtf creation: ].
+             qq[Source is in gtf format: copying file];
+        copy($annotation_abs_path, q[.]);
+        log_timestamp('stop', $tool);
+        return 1;
+    }
+
+    # ... otherwise, convert it to GTF
+    my $gtf_command = qq[gffread $annotation_abs_path ].
+                      qq[-T -o $annotation_name.gtf];
+    if(! execute_command('gtf', $gtf_command)){
+        log_timestamp('abort', $tool);
+        return 0;
+    }
+
+    log_timestamp('stop', $tool);
+    return 1;
+}
+
+
+sub rna_seqc {
+    my ($tool, $genome_abs_path) = @_;
+
     # validate annotation file is RNA-SeQC-compliant:
     #- ensembl gtf format assumed (gene type in column 2)
     #- all entries must have transcript id
     #- all entries must be on contig in reference sequence dict.
     #- files must be called *.gtf
-    log_timestamp('start', 'RNA-SeQC');
+    log_timestamp('start', $tool);
 
-    my @gtf = inspect_dir($annotation_dir, $GTF_FILE_REGEX);
-    if (! @gtf) { 
-        carp 'Nor gtf or a different annotation directory were found.';
-        log_timestamp('abort', 'RNA-SeQC');
-        return 0;
-    } elsif (scalar @gtf != 1) {
-        carp 'One and only one file in gtf format file is expected.';
-        log_timestamp('abort', 'RNA-SeQC');
+    my $annotation_abs_path = get_common_gtf;
+    my $gtf_name = fileparse($annotation_abs_path, $GTF_FILE_REGEX);
+
+    # a reference genome dictionary is required
+    # with matching contig names. load it onto a hash
+    my $dict_file_abs_path;
+    if (defined $dict_dir) {
+        my @piccard_dict = inspect_dir($dict_dir, $DICT_FILE_REGEX);
+        if (! @piccard_dict) {
+            carp q[*** RNA-SeQC annotation creation: ].
+                 qq[Cannot access $dict_dir: no such directory];
+            log_timestamp('abort', $tool);
+            return 0;
+        } elsif (scalar @piccard_dict != 1){
+            carp q[*** RNA-SeQC annotation creation: ].
+                 q[One and only one Piccard dictionary file expected.];
+            log_timestamp('abort', $tool);
+            return 0;
+        }
+        $dict_file_abs_path = abs_path(qq[$dict_dir/$piccard_dict[0]]);
+    } else {
+        carp q[*** RNA-SeQC annotation creation: ].
+             q[Path to picard dictionary file required ];
+        log_timestamp('abort', $tool);
         return 0;
     }
-    my $gtf_file_abs_path = abs_path(qq{$annotation_dir/$gtf[0]});
-    my $gtf_name = fileparse($gtf_file_abs_path, $GTF_FILE_REGEX);
-
-    my @dict = inspect_dir($dict_dir, $DICT_FILE_REGEX);
-    if (! @dict) {
-        carp q{Path to reference dictionary file required }.
-             q{when creating RNA-SeQC annotation.};
-        log_timestamp('abort', 'RNA-SeQC');
-        return 0;
-    }
-
-    clean_slate('RNA-SeQC');
-    $CWD = 'RNA-SeQC';
-
     my %ref_dict = ();
-    my $fh_dict = IO::File->new(qq{$dict_dir/$dict[0]}, 'r');
+    my $fh_dict = IO::File->new($dict_file_abs_path, 'r');
     while (my $line = $fh_dict->getline) {
         chomp $line;
         if ($line =~ /\A\@SQ\sSN:(.+)\sLN/smx){
@@ -304,161 +386,185 @@ sub rna_seqc{
     }
     $fh_dict->close();
 
+    clean_slate('RNA-SeQC');
+    $CWD = 'RNA-SeQC';
+
     my $fh_out_discarded;
     if ($save_discarded) { 
-        $fh_out_discarded = IO::File->new(qq{> $gtf_name.discarded})
+        $fh_out_discarded = IO::File->new(qq[> $gtf_name.discarded])
     };
-    my $fh_out = IO::File->new(qq{> $gtf_name.gtf});
-    my $fh_gtf = IO::File->new($gtf_file_abs_path, 'r');
+    my $fh_out = IO::File->new(qq[> $gtf_name.gtf]);
+    my $fh_gtf = IO::File->new($annotation_abs_path, 'r');
 
-    my ($valid_entries, $all_entries, $no_transcript_id,
-        $not_gencode_gene_type, $invalid_entries, $not_in_dict,
-        $fewer_cols) = (0, 0, 0, 0, 0, 0, 0);
+    my ($valid_entries, $all_entries,
+        $no_transcript_id, $invalid_entries,
+        $not_in_dict, $no_gencode_format) = (0, 0, 0, 0, 0, 0);
+
     while (my $line = $fh_gtf->getline) {
         chomp $line;
         if($line =~ /\A\#/smx){
-            print $fh_out qq{$line\n};
+            print $fh_out qq[$line\n];
             next;
         }
+        my $valid = 1;
         $all_entries += 1;
         my @columns = split /\t/smx, $line;
-        if (scalar @columns < 9) {
-            $fewer_cols += 1;
-            if ($save_discarded) { print $fh_out_discarded qq{$line\n} };
-            next;
-        }
-        my ($chr, $type, $attributes) = ($columns[0], $columns[2], $columns[8]);
+        my $chr = $columns[0] // q[];
+        my $attr = $columns[8] // q[];
         if (! exists $ref_dict{$chr}) {
             $not_in_dict += 1;
-            if ($save_discarded) { print $fh_out_discarded qq{$line\n} };
-            next;
+            $valid = 0;
         }
-        if ($attributes !~ /transcript_id/ismx){
-            $no_transcript_id += 1;
-            if ($save_discarded) { print $fh_out_discarded qq{$line\n} };
-            next;
+        if ($attr =~ $GENCODE_ATTR_REGEX) {
+            if ($attr !~ /transcript_id/ismx){
+                $no_transcript_id += 1;
+                $valid = 0;
+            }
+        } else {
+            $no_gencode_format += 1;
+            $valid = 0;
         }
-        if (none {$_ eq $type} @GENCODE_GENE_TYPE) {
-            $not_gencode_gene_type += 1;
-            # TODO: should these be discarded?
+        if ($valid) {
+            $valid_entries += 1;
+            print $fh_out qq[$line\n];
+        } else {
+            if ($save_discarded) { print $fh_out_discarded qq[$line\n] };
         }
-        $valid_entries += 1;
-        print $fh_out qq{$line\n};
     }
+
     $fh_gtf->close();
     $fh_out->close();
     if ($save_discarded) { $fh_out_discarded->close() };
-    my $error_rate = sprintf '%.2f', $valid_entries / $all_entries;
 
-    say qq{*** Rate of valid/invalid records: $error_rate:\n}.
-        qq{****** With missing columns: $fewer_cols\n}.
-        qq{****** Not in ref dict: $not_in_dict\n}.
-        qq{****** No transcript_id present: $no_transcript_id\n}.
-        qq{****** Gene_type not a Genecode type (not discarded): }.
-        qq{$not_gencode_gene_type\n};
-
+    my $total_discarded = $not_in_dict + $no_gencode_format + $no_transcript_id;
+    my $error_rate = sprintf '%.5f', $valid_entries / $all_entries;
+    say qq[*** Rate of valid/invalid records: $error_rate:\n].
+        qq[****** Total records in source: $all_entries\n].
+        qq[****** Total records in target: $valid_entries\n].
+        qq[*** Discarded: \n].
+        qq[****** Not in reference dict: $not_in_dict\n].
+        qq[****** Not in Gencode GTF format: $no_gencode_format\n].
+        qq[****** No transcript_id present: $no_transcript_id\n];
     if ($error_rate < $rate_valid) {
-        carp qq{*** RNA-SeQC annotation creation: }.
-             qq{far too many records discarded.\n}.
-             qq{*** Minimum acceptable rate = $rate_valid. }.
-             qq{To adjust, use option --rate=<minimum rate>};
+        carp qq[*** RNA-SeQC annotation creation: ].
+             qq[far too many records discarded.\n].
+             qq[*** Minimum acceptable rate = $rate_valid. ].
+             qq[To adjust, use option --rate_valid_rna_seqc=<minimum rate>];
         log_timestamp('abort', 'RNA-SeQC');
         return 0;
     }
-    log_timestamp('stop', 'RNA-SeQC');
 
+    log_timestamp('stop', $tool);
     return 1;
 }
 
 
 sub salmon {
-    my $salmon_version = shift;
+    my ($salmon_version, $genome_abs_path) = @_;
 
     log_timestamp('start', $salmon_version);
     clean_slate($salmon_version);
 
+    my $annotation_abs_path = get_common_gtf;
+    my $genome_name = fileparse($genome_abs_path, $FASTA_FILE_REGEX);
     my $ref_transcriptome_exists = 1;
     my @fasta = inspect_dir('fasta', $FASTA_FILE_REGEX);
-
     if (! @fasta) {
-        say qq{*** $salmon_version index creation: }.
-            qq{no fasta directory found.};
+        say q[*** $salmon_version index creation: ].
+            q[Cannot access fasta: no such directory];
         $ref_transcriptome_exists = 0;
     } else {
         if (scalar @fasta == 0) {
-            say qq{*** $salmon_version index creation: }.
-                qq{no transcriptome reference fasta file present.};
+            say qq[*** $salmon_version index creation: ].
+                qq[no transcriptome reference fasta file present.];
             $ref_transcriptome_exists = 0;
         } elsif (scalar @fasta > 1) {
-            carp qq{*** $salmon_version index creation failed: }.
-                 qq{One and only one transcriptome reference fasta file expected.};
+            carp qq[*** $salmon_version index creation failed: ].
+                 qq[One and only one transcriptome reference fasta file expected.];
             log_timestamp('abort', $salmon_version);
             return 0;
         }
     }
 
     if (! $ref_transcriptome_exists) {
-        say qq{*** $salmon_version index creation: }.
-            qq{attempting to create a reference transcriptome fasta file.};
-        fasta();
-        $CWD = $working_dir;
+        say qq[*** $salmon_version index creation: ].
+            qq[attempting to create a reference transcriptome fasta file.];
+        if (! fasta(qq[fasta (from $salmon_version)], $genome_abs_path)){
+            carp qq[*** $salmon_version index creation failed: ].
+                 qq[create transcriptome reference fasta file.];
+            log_timestamp('abort', $salmon_version);
+            return 0;
+        } else {
+             # remove it from the build list in case it's there via CLI
+            delete $build{'fasta'};
+        }
     }
 
     $CWD = $salmon_version;
     my $executable = $salmon_version;
-    my $salmon_command = qq{$executable --no-version-check index }.
-                         qq{-t ../fasta/$ref_genome_name.transcripts.fa }.
-                         qq{-i . --type quasi -k 31};
+    my $salmon_command = qq[$executable --no-version-check index ].
+                         qq[-t ../fasta/$genome_name.transcripts.fa ].
+                         qq[-i . --type quasi -k 31];
 
-    return execute_command($salmon_version, $salmon_command);
+    if(! execute_command($salmon_version, $salmon_command)){
+        log_timestamp('abort', $salmon_version);
+        return 0;
+    }
+
+    log_timestamp('stop', $salmon_version);
+    return 1;
 }
 
 
 sub salmon_latest {
-    log_timestamp('start', 'salmon (latest)');
-
-    make_path($LATEST_SALMON, { mode => $DIR_PERM });
-
-    if (create_symlink('salmon', $LATEST_SALMON, 'salmon (latest)')) {
-        log_timestamp('stop', 'salmon (latest)');
-        return 1;
-    } else {
-        log_timestamp('abort', 'salmon (latest)');
+    my $tool = qq[salmon (latest: $LATEST_SALMON)];
+    log_timestamp('start', $tool);
+    if (! create_symlink($LATEST_SALMON, 'salmon', $tool)) {
+        log_timestamp('abort', $tool);
         return 0;
     }
+    log_timestamp('stop', $tool);
+    return 1;
 }
 
 
 sub tophat2 {
-    log_timestamp('start', 'TopHat2');
+    my ($tool, $genome_abs_path) = @_;
 
-    my @gtf_or_gff = inspect_dir($annotation_dir, $GTF_GFF_FILE_REGEX);
-    if (! @gtf_or_gff) { 
-        say 'Nor gtf or a different annotation directory were found.';
-        log_timestamp('abort', 'TopHat2');
-        return 0;
-    }
-    my $annot_file_abs_path = abs_path(qq{$annotation_dir/$gtf_or_gff[0]});
-
-    my @bt2_files = inspect_dir($bt2_dir, $BT2_FILE_REGEX);
-    if (! @bt2_files) {
-        say q{*** TopHat2 index creation: }.
-            q{Path to bowtie2 index required when building TopHat2 index.};
-        log_timestamp('abort', 'TopHat2');
-        return 0;
-    } else {
-        $bt2_index_name = fileparse($bt2_files[0], $BT2_FILE_REGEX);
-    }
-
+    log_timestamp('start', $tool);
     clean_slate('tophat2');
-    $CWD = './tophat2';
 
-    my $executable = 'tophat2';
-    my $tophat2_command = qq{$executable -G $annot_file_abs_path }.
-                          qq{--transcriptome-index=$ref_genome_name.known }.
-                          qq{$bt2_dir/$bt2_index_name};
+    my $bt2_index_name;
+    if (defined $bt2_dir) {
+        my @bt2_files = inspect_dir($bt2_dir, $BT2_FILE_REGEX);
+        if (! @bt2_files) {
+            carp q[*** TopHat2 index creation: ].
+                 qq[Cannot access $bt2_dir: no such directory];
+            log_timestamp('abort', $tool);
+            return 0;
+        } else {
+            $bt2_index_name = fileparse($bt2_files[0], $BT2_FILE_REGEX);
+        }
+    } else {
+        carp q[*** TopHat2 index creation: ].
+             q[Path to bowtie2 index required when building TopHat2 index.];
+        log_timestamp('abort', $tool);
+        return 0;
+    }
 
-    return execute_command($executable, $tophat2_command);
+    my $annotation_abs_path = get_common_gtf;
+    my $genome_name = fileparse($genome_abs_path, $FASTA_FILE_REGEX);
+    my $tophat2_command = qq[tophat2 --output-dir tophat2 --GTF=$annotation_abs_path ].
+                          qq[--transcriptome-index=tophat2/$genome_name.known ].
+                          qq[$bt2_dir/$bt2_index_name];
+
+    if(! execute_command('tophat2', $tophat2_command)){
+        log_timestamp('abort', $tool);
+        return 0;
+    }
+
+    log_timestamp('stop', $tool);
+    return 1;
 }
 
 
@@ -475,24 +581,23 @@ an index or an auxiliary file.
 
 =head1 SYNOPSIS
 
-Change CWD to parent directory of 'gtf' subdirectory in the
-transcriptome repository. Alternatively, provide a path to the
-annotation file in GTF2/GFF3 format to build the gtf file that will
-be used by the other tools. A path to the reference genome in fasta
-format is always required.
+Change CWD to the output ofach tool will be written in the
+transcriptome repository. A path to the annotation file in GTF2/GFF3
+format - used to build the gtf file that will be used by the other
+tools - and a path to the reference genome in fasta format are always
+required.
 
-  perl Ref_Maker_T --genome=/path/to/ref/ [options]
   perl Ref_Maker_T --genome=/path/to/ref/ --annotation=/path/to/annotation/ [options]
 
 If you pass tool names as arguments only the indexes or auxiliary files
 of those will be built.
 
-  perl Ref_Maker_T --genome=/path/to/ref/ --salmon --salmon0_8
+  perl Ref_Maker_T --genome=/path/to/ref/ --annotation=/path/to/annotation/ --salmon --salmon0_8
 
 Some tools need to know the path to specific files to work. E.g.
 Tophat2, requires a path where appropriate bowtie2-index files exist.
 
-  perl Ref_Maker_T --genome=/path/to/ref/ --bowtie2=/path/to/bt2/ --tophat2
+  perl Ref_Maker_T --genome=/path/to/ref/ --annotation=/path/to/annotation/ --bowtie2=/path/to/bt2/ --tophat2
 
 Under LSF (tl;dr) if running all of the tools, reserve at least 35GB
 of memory and 16 cores.
@@ -526,6 +631,49 @@ Create a symlink between a source and target.
 =head1 REQUIRED ARGUMENTS
 
 =head1 OPTIONS
+
+=over
+
+=item B<--annotation=<path to annotation directory>>
+
+Path to the directory where reference genome annotation is
+located. Supported formats: GFF3 and GTF2.
+
+=item B<--bowtie2=<path to bowtie2 index directory>>
+
+Path to the directory where the bowtie2-generated index
+of the reference genome can be found.
+
+=item B<--dictionary=<path to picard dictionary directory>>
+
+Path to the directory where a picard-generated dictionary
+of the reference genome is located.
+
+=item B<--genome=<path to ref genome directory>>
+
+Path to the directory where the reference genome file in
+fasta format is stored. Suffixes supported: .fa, .fasta.
+
+=item B<--help>
+
+Print this documentation and exit.
+
+=item B<--rate_valid_rna_seqc=0.5>
+
+When running --rna_seqc use this as the minimum rate of accepted
+records from the annotation file before failing the job. E.g.
+0.1 will accept 90% of the records being lost.
+
+=item B<--save_discarded_rna_seqc>
+
+When running --rna_seqc save discarded records from the annotation file into
+a different file.
+
+=item B<--tool [--tool]>
+
+None, some or all of: cellranger, fasta, gtf, rna_seqc, salmon0_8, salmon0_10, salmon, tophat2.
+
+=back
 
 =head1 EXIT STATUS
 
@@ -568,6 +716,8 @@ Create a symlink between a source and target.
 =item IO::File
 
 =item feature
+
+=item Pod::Usage
 
 =back
 
