@@ -52,7 +52,6 @@ Readonly::Array  my @TOOLS => qw{
 
 my ($help, $verbose);
 my ($working_dir, $ref_genome_dir, $annotation_dir, $bt2_dir, $dict_dir);
-my $rate_valid = $MIN_RATE;
 my $save_discarded = 0;
 
 my %build = map { $_ => 0 } @TOOLS;
@@ -66,8 +65,6 @@ GetOptions(
     'dictionary=s'            => \$dict_dir,
     'genome=s'                => \$ref_genome_dir,
     'help'                    => \$help,
-    'rate_valid_rna_seqc=s'   => \$rate_valid,
-    'save_discarded_rna_seqc' => \$save_discarded,
 ) || pod2usage(2);
 pod2usage(0) if $help;
 
@@ -389,10 +386,6 @@ sub rna_seqc {
     clean_slate('RNA-SeQC');
     $CWD = 'RNA-SeQC';
 
-    my $fh_out_discarded;
-    if ($save_discarded) { 
-        $fh_out_discarded = IO::File->new(qq[> $gtf_name.discarded])
-    };
     my $fh_out = IO::File->new(qq[> $gtf_name.gtf]);
     my $fh_gtf = IO::File->new($annotation_abs_path, 'r');
 
@@ -427,14 +420,11 @@ sub rna_seqc {
         if ($valid) {
             $valid_entries += 1;
             print $fh_out qq[$line\n];
-        } else {
-            if ($save_discarded) { print $fh_out_discarded qq[$line\n] };
         }
     }
 
     $fh_gtf->close();
     $fh_out->close();
-    if ($save_discarded) { $fh_out_discarded->close() };
 
     my $total_discarded = $not_in_dict + $no_gencode_format + $no_transcript_id;
     my $error_rate = sprintf '%.5f', $valid_entries / $all_entries;
@@ -445,13 +435,10 @@ sub rna_seqc {
         qq[****** Not in reference dict: $not_in_dict\n].
         qq[****** Not in Gencode GTF format: $no_gencode_format\n].
         qq[****** No transcript_id present: $no_transcript_id\n];
-    if ($error_rate < $rate_valid) {
-        carp qq[*** RNA-SeQC annotation creation: ].
-             qq[far too many records discarded.\n].
-             qq[*** Minimum acceptable rate = $rate_valid. ].
-             qq[To adjust, use option --rate_valid_rna_seqc=<minimum rate>];
-        log_timestamp('abort', 'RNA-SeQC');
-        return 0;
+    if ($error_rate < $MIN_RATE) {
+        carp q[*** RNA-SeQC annotation creation: ].
+             q[too many records were discarded (>50%).].
+             q[Ignore this message if that was expected.];
     }
 
     log_timestamp('stop', $tool);
