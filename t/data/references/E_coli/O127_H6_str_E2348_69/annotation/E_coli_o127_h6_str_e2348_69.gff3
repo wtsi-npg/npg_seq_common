@@ -1,0 +1,50 @@
+##gff-version 3
+##20180803: region subset extracted from original for tests
+##sequence-region   pE2348-2 1 6147
+#!genome-build European Nucleotide Archive ASM2654v1
+#!genome-version ASM2654v1
+#!genome-date 2015-02
+#!genome-build-accession GCA_000026545.1
+#!genebuild-last-updated 2015-02
+##sequence-region   pE2348-2 1 6147
+pE2348-2	European Nucleotide Archive	region	1	6147	.	.	.	ID=region:pE2348-2;Alias=FM180570.1;Is_circular=true
+pE2348-2	ena	gene	141	956	.	+	.	ID=gene:E2348_P2_01;Name=sulII;biotype=protein_coding;description=dihydropteroate synthase;gene_id=E2348_P2_01;logic_name=ena
+pE2348-2	ena	mRNA	141	956	.	+	.	ID=transcript:CAS07426;Parent=gene:E2348_P2_01;Name=sulII-1;biotype=protein_coding;transcript_id=CAS07426
+pE2348-2	ena	exon	141	956	.	+	.	Parent=transcript:CAS07426;Name=CAS07426-1;constitutive=1;ensembl_end_phase=0;ensembl_phase=0;exon_id=CAS07426-1;rank=1
+pE2348-2	ena	CDS	141	956	.	+	0	ID=CDS:CAS07426;Parent=transcript:CAS07426;protein_id=CAS07426
+pE2348-2	ena	gene	1017	1820	.	+	.	ID=gene:E2348_P2_02;Name=strA;biotype=protein_coding;description=streptomycin phosphotransferase StrA;gene_id=E2348_P2_02;logic_name=ena
+pE2348-2	ena	mRNA	1017	1820	.	+	.	ID=transcript:CAS07427;Parent=gene:E2348_P2_02;Name=strA-1;biotype=protein_coding;transcript_id=CAS07427
+pE2348-2	ena	exon	1017	1820	.	+	.	Parent=transcript:CAS07427;Name=CAS07427-1;constitutive=1;ensembl_end_phase=0;ensembl_phase=0;exon_id=CAS07427-1;rank=1
+pE2348-2	ena	CDS	1017	1820	.	+	0	ID=CDS:CAS07427;Parent=transcript:CAS07427;protein_id=CAS07427
+pE2348-2	ena	gene	1820	2656	.	+	.	ID=gene:E2348_P2_03;Name=strB;biotype=protein_coding;description=streptomycin phosphotransferase StrB;gene_id=E2348_P2_03;logic_name=ena
+pE2348-2	ena	mRNA	1820	2656	.	+	.	ID=transcript:CAS07428;Parent=gene:E2348_P2_03;Name=strB-1;biotype=protein_coding;transcript_id=CAS07428
+pE2348-2	ena	exon	1820	2656	.	+	.	Parent=transcript:CAS07428;Name=CAS07428-1;constitutive=1;ensembl_end_phase=0;ensembl_phase=0;exon_id=CAS07428-1;rank=1
+pE2348-2	ena	CDS	1820	2656	.	+	0	ID=CDS:CAS07428;Parent=transcript:CAS07428;protein_id=CAS07428
+pE2348-2	ena	gene	2628	3167	.	-	.	ID=gene:E2348_P2_04;biotype=protein_coding;gene_id=E2348_P2_04;logic_name=ena
+pE2348-2	ena	mRNA	2628	3167	.	-	.	ID=transcript:CAS07429;Parent=gene:E2348_P2_04;biotype=protein_coding;transcript_id=CAS07429
+pE2348-2	ena	exon	2628	3167	.	-	.	Parent=transcript:CAS07429;Name=CAS07429-1;constitutive=1;ensembl_end_phase=0;ensembl_phase=0;exon_id=CAS07429-1;rank=1
+pE2348-2	ena	CDS	2628	3167	.	-	0	ID=CDS:CAS07429;Parent=transcript:CAS07429;protein_id=CAS07429
+pE2348-2	ena	gene	3211	3600	.	-	.	ID=gene:E2348_P2_05;biotype=protein_coding;description=predicted protein;gene_id=E2348_P2_05;logic_name=ena
+pE2348-2	ena	mRNA	3211	3600	.	-	.	ID=transcript:CAS07430;Parent=gene:E2348_P2_05;biotype=protein_coding;transcript_id=CAS07430
+pE2348-2	ena	exon	3211	3600	.	-	.	Parent=transcript:CAS07430;Name=CAS07430-1;constitutive=1;ensembl_end_phase=0;ensembl_phase=0;exon_id=CAS07430-1;rank=1
+pE2348-2	ena	CDS	3211	3600	.	-	0	ID=CDS:CAS07430;Parent=transcript:CAS07430;protein_id=CAS07430
+pE2348-2	ena	gene	3770	4258	.	+	.	ID=gene:E2348_P2_06;biotype=protein_coding;description=entry exclusion protein 1;gene_id=E2348_P2_06;logic_name=ena
+pE2348-2	ena	mRNA	3770	4258	.	+	.	ID=transcript:CAS07431;Parent=gene:E2348_P2_06;biotype=protein_coding;transcript_id=CAS07431
+pE2348-2	ena	exon	3770	4258	.	+	.	Parent=transcript:CAS07431;Name=CAS07431-1;constitutive=1;ensembl_end_phase=0;ensembl_phase=0;exon_id=CAS07431-1;rank=1
+pE2348-2	ena	CDS	3770	4258	.	+	0	ID=CDS:CAS07431;Parent=transcript:CAS07431;protein_id=CAS07431
+pE2348-2	ena	gene	4317	4592	.	-	.	ID=gene:E2348_P2_07;biotype=protein_coding;description=predicted protein;gene_id=E2348_P2_07;logic_name=ena
+pE2348-2	ena	mRNA	4317	4592	.	-	.	ID=transcript:CAS07432;Parent=gene:E2348_P2_07;biotype=protein_coding;transcript_id=CAS07432
+pE2348-2	ena	exon	4317	4592	.	-	.	Parent=transcript:CAS07432;Name=CAS07432-1;constitutive=1;ensembl_end_phase=0;ensembl_phase=0;exon_id=CAS07432-1;rank=1
+pE2348-2	ena	CDS	4317	4592	.	-	0	ID=CDS:CAS07432;Parent=transcript:CAS07432;protein_id=CAS07432
+pE2348-2	ena	gene	4950	5099	.	-	.	ID=gene:E2348_P2_08;biotype=protein_coding;description=predicted protein;gene_id=E2348_P2_08;logic_name=ena
+pE2348-2	ena	mRNA	4950	5099	.	-	.	ID=transcript:CAS07433;Parent=gene:E2348_P2_08;biotype=protein_coding;transcript_id=CAS07433
+pE2348-2	ena	exon	4950	5099	.	-	.	Parent=transcript:CAS07433;Name=CAS07433-1;constitutive=1;ensembl_end_phase=0;ensembl_phase=0;exon_id=CAS07433-1;rank=1
+pE2348-2	ena	CDS	4950	5099	.	-	0	ID=CDS:CAS07433;Parent=transcript:CAS07433;protein_id=CAS07433
+pE2348-2	ena	gene	5224	5628	.	+	.	ID=gene:E2348_P2_09;biotype=protein_coding;description=probable plasmid replication initiation protein;gene_id=E2348_P2_09;logic_name=ena
+pE2348-2	ena	mRNA	5224	5628	.	+	.	ID=transcript:CAS07434;Parent=gene:E2348_P2_09;biotype=protein_coding;transcript_id=CAS07434
+pE2348-2	ena	exon	5224	5628	.	+	.	Parent=transcript:CAS07434;Name=CAS07434-1;constitutive=1;ensembl_end_phase=0;ensembl_phase=0;exon_id=CAS07434-1;rank=1
+pE2348-2	ena	CDS	5224	5628	.	+	0	ID=CDS:CAS07434;Parent=transcript:CAS07434;protein_id=CAS07434
+pE2348-2	Rfam	gene	5849	5950	.	-	.	ID=gene:EBG00001076460;Name=RNAI;biotype=antisense;gene_id=EBG00001076460;logic_name=rfam_genes
+pE2348-2	Rfam	transcript	5849	5950	.	-	.	ID=transcript:EBT00001679865;Parent=gene:EBG00001076460;Name=RNAI;biotype=antisense;transcript_id=EBT00001679865
+pE2348-2	Rfam	exon	5849	5950	.	-	.	Parent=transcript:EBT00001679865;Name=EBG00001076460-1;constitutive=1;ensembl_end_phase=0;ensembl_phase=0;exon_id=EBG00001076460-1;rank=1
+pE2348-2	ena_misc_rna	biological_region	5849	5950	.	+	.	external_name=E2348_P2_mR_1%3B idenitfied in Rfam screening as RNAI;logic_name=ena_misc_rna
