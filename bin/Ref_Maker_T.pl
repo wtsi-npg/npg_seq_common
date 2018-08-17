@@ -55,18 +55,22 @@ my ($working_dir, $ref_genome_dir, $annotation_dir, $bt2_dir, $dict_dir);
 my $save_discarded = 0;
 
 my %build = map { $_ => 0 } @TOOLS;
-
 pod2usage(2) if (! @ARGV);
 GetOptions(
     \%build,
     keys %build,
-    'annotation=s'            => \$annotation_dir,
-    'bowtie2=s'               => \$bt2_dir,
-    'dictionary=s'            => \$dict_dir,
-    'genome=s'                => \$ref_genome_dir,
-    'help'                    => \$help,
+    'annotation=s' => \$annotation_dir,
+    'bowtie2=s'=> \$bt2_dir,
+    'dictionary=s' => \$dict_dir,
+    'genome=s' => \$ref_genome_dir,
+    'help',
 ) || pod2usage(2);
+
 pod2usage(0) if $help;
+pod2usage(-message => q[Mandatory argument `-genome' is missing], -verbose => 99,
+          -sections => [qw{OPTIONS}], -exitval => 1) unless (defined $ref_genome_dir);
+pod2usage(-message => q[Mandatory argument `-annotation' is missing], -verbose => 99,
+          -sections => [qw{OPTIONS}], -exitval => 1) unless (defined $annotation_dir);
 
 # if no tools were specified do all
 if (sum( values %build ) == 0) {
@@ -621,44 +625,37 @@ Create a symlink between a source and target.
 
 =over
 
-=item B<--annotation=<path to annotation directory>>
+=item B<-annotation=<path to annotation directory>>
 
-Path to the directory where reference genome annotation is
-located. Supported formats: GFF3 and GTF2.
+Mandatory. Path to the directory where reference genome annotation
+is located. Supported formats: GFF3 and GTF2.
 
-=item B<--bowtie2=<path to bowtie2 index directory>>
+=item B<-bowtie2=<path to bowtie2 index directory>>
 
-Path to the directory where the bowtie2-generated index
-of the reference genome can be found.
+Required when building TopHat2's known transcripts. Path to the
+directory where the bowtie2-generated index of the reference genome
+can be found.
 
-=item B<--dictionary=<path to picard dictionary directory>>
+=item B<-dictionary=<path to picard dictionary directory>>
 
-Path to the directory where a picard-generated dictionary
-of the reference genome is located.
+Required when building RNA-SeQC's annotation. Path to the directory
+where a picard-generated dictionary of the reference genome is
+located.
 
-=item B<--genome=<path to ref genome directory>>
+=item B<-genome=<path to ref genome directory>>
 
-Path to the directory where the reference genome file in
+Mandatory. Path to the directory where the reference genome file in
 fasta format is stored. Suffixes supported: .fa, .fasta.
 
-=item B<--help>
+=item B<-help>
 
 Print this documentation and exit.
 
-=item B<--rate_valid_rna_seqc=0.5>
+=item B<-<tool>> [B<-<tool>>]
 
-When running --rna_seqc use this as the minimum rate of accepted
-records from the annotation file before failing the job. E.g.
-0.1 will accept 90% of the records being lost.
-
-=item B<--save_discarded_rna_seqc>
-
-When running --rna_seqc save discarded records from the annotation file into
-a different file.
-
-=item B<--tool [--tool]>
-
-None, some or all of: cellranger, fasta, gtf, rna_seqc, salmon0_8, salmon0_10, salmon, tophat2.
+Build this <tool>'s files. Accepts: -cellranger, -fasta, -gtf
+-rna_seqc, -salmon0_8, -salmon0_10, -salmon, -tophat2. Omit to
+execute all of them.
 
 =back
 
