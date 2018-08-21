@@ -84,17 +84,13 @@ exit $status;
 
 sub main {
     my @genome = inspect_dir($ref_genome_dir, $FASTA_FILE_REGEX);
-    if (! @genome) {
-        croak qq[Cannot access $ref_genome_dir: no such directory];
-    } elsif (scalar @genome != 1){
+    if (scalar @genome != 1){
         croak q[One and only one fasta file expected.];
     }
     my $ref_genome_file_abs_path = abs_path(qq[$ref_genome_dir/$genome[0]]);
 
     my @annotation = inspect_dir($annotation_dir, $GTF_GFF_FILE_REGEX);
-    if (! @annotation) { 
-        croak qq[Cannot access $annotation_dir: no such directory];
-    } elsif (scalar @annotation != 1){
+    if (scalar @annotation != 1){
         croak q[One and only one annotation file expected.];
     }
     my $annot_file_abs_path = abs_path(qq[$annotation_dir/$annotation[0]]);
@@ -134,7 +130,14 @@ sub main {
         }
     }
 
-    return 1;
+    if (@failed) {
+        my $message = q[WARNING: Task(s) failed, see Ref_Maker_T output for ].
+            q[details: ].join(q[, ], @failed)."\n";
+        print {*STDERR} $message or carp $OS_ERROR;
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 
@@ -179,10 +182,10 @@ sub execute_command {
 
 sub inspect_dir {
     my ($dir_name, $file_pattern) = @_;
-    my $dh;
     if (! -d $dir_name){
-        return;
+        croak qq[Cannot access $dir_name: no such directory];
     }
+    my $dh;
     opendir $dh, $dir_name;
     my @files = grep {m/$file_pattern\z/imsx} readdir $dh;
     closedir $dh;
