@@ -15,9 +15,6 @@ use Readonly;
 use JSON;
 
 
-#use Data::Dumper;
-
-
 # test the Transcriptome_Maker script by building auxiliary files for E coli
 # confirm md5 checksum of expected output files
 SKIP: {
@@ -56,7 +53,7 @@ SKIP: {
     make_path($tmp_transcriptome_dir);
     chdir($tmp_transcriptome_dir);
 
-    my $transcriptome_maker = qq[$start_dir/bin/Ref_Maker_T.pl];
+    my $transcriptome_maker = qq[$start_dir/bin/Transcriptome_Maker];
     my $transcriptome_maker_log = qq[$tmp/transcriptome_maker.log];
 
     # Run Transcriptome_Maker, redirecting stdout and stderr to .log file
