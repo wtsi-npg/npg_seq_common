@@ -127,6 +127,28 @@ ln -s /tmp/STAR-${STAR_VERSION}/bin/Linux_x86_64_static/STAR /tmp/bin/star
 curl -L https://github.com/lh3/minimap2/releases/download/v${MINIMAP2_VERSION}/minimap2-${MINIMAP2_VERSION}_x64-linux.tar.bz2 | tar -jxvf -
 ln -s /tmp/minimap2-${MINIMAP2_VERSION}_x64-linux/minimap2 /tmp/bin/minimap2
 
+# salmon <=0.8.2
+wget https://github.com/COMBINE-lab/salmon/releases/download/v${SALMON0_8_VERSION}/Salmon-${SALMON0_8_VERSION}_linux_x86_64.tar.gz
+tar xzf Salmon-${SALMON0_8_VERSION}_linux_x86_64.tar.gz
+mkdir -p /tmp/salmon/${SALMON0_8_VERSION}
+cp -r /tmp/Salmon-${SALMON0_8_VERSION}_linux_x86_64/* /tmp/salmon/${SALMON0_8_VERSION}
+
+# salmon >=0.10.2
+wget https://github.com/COMBINE-lab/salmon/releases/download/v${SALMON0_10_VERSION}/salmon-${SALMON0_10_VERSION}-linux_x86_64.tar.gz
+tar xzf salmon-${SALMON0_10_VERSION}-linux_x86_64.tar.gz
+mkdir -p /tmp/salmon/${SALMON0_10_VERSION}
+cp -r /tmp/salmon-${SALMON0_10_VERSION}-linux_x86_64/* /tmp/salmon/${SALMON0_10_VERSION}
+
+# tophat2
+wget https://ccb.jhu.edu/software/tophat/downloads/tophat-${TOPHAT2_VERSION}.Linux_x86_64.tar.gz
+tar xzf tophat-${TOPHAT2_VERSION}.Linux_x86_64.tar.gz
+ln -s /tmp/tophat-${TOPHAT2_VERSION}.Linux_x86_64/tophat-2.0.0.Linux_x86_64/tophat2 /tmp/bin/tophat2
+
+# gffread
+wget http://ccb.jhu.edu/software/stringtie/dl/gffread-${GFFREAD_VERSION}.Linux_x86_64.tar.gz
+tar xzf gffread-${GFFREAD_VERSION}.Linux_x86_64.tar.gz
+ln -s /tmp/gffread-${GFFREAD_VERSION}.Linux_x86_64/gffread /tmp/bin/gffread
+
 popd
 
 # Third party tools install done

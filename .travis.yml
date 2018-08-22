@@ -27,6 +27,10 @@ env:
     - PICARD_VERSION="1.72"
     - STAR_VERSION="2.5.2b"
     - MINIMAP2_VERSION="2.10"
+    - SALMON0_8_VERSION="0.8.2"
+    - SALMON0_10_VERSION="0.11.0"
+    - TOPHAT2_VERSION="2.1.1"
+    - GFFREAD_VERSION="0.9.12"
     - TOOLS_INSTALLED=1
 #    - TEST_AUTHOR=1 # disabled to avoid perl critic complaints
     - MACHTYPE="`uname -m`"

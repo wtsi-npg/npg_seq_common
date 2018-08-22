@@ -14,9 +14,11 @@ use Digest::MD5;
 use Readonly;
 use JSON;
 
+Readonly::Scalar my $CHILD_ERROR_SHIFT => 8;
 
 # test the Transcriptome_Maker script by building auxiliary files for E coli
-# confirm md5 checksum of expected output files
+# confirm md5 checksum or json structure match or just the presence of expected output files
+
 SKIP: {
     skip 'Third party bioinformatics tools required. Set TOOLS_INSTALLED to true to run.',
         107 unless ($ENV{'TOOLS_INSTALLED'});
@@ -47,8 +49,23 @@ SKIP: {
         }
     }
 
-    local $ENV{'PATH'} = join q[:], join(q[/], $start_dir, 'bin'), $ENV{'PATH'};
 
+    # Travis CI uses these ENV vars after tools have been locally installed.
+    if ($ENV{'TRAVIS'}) {
+        my $old_salmon_version = $ENV{'SALMON0_8_VERSION'} // q[];
+        my $latest_salmon_version = $ENV{'SALMON0_10_VERSION'} // q[];
+        local $ENV{'PATH'} = join q[:],
+            catdir($start_dir, 'bin'),
+            catdir($start_dir, 'salmon', $old_salmon_version, 'bin'),
+            catdir($start_dir, 'salmon', $latest_salmon_version, 'bin'),
+            $ENV{'PATH'};
+        local $ENV{'LD_LIBRARY_PATH'} = join q[:],
+            catdir($start_dir, 'salmon', $old_salmon_version, 'lib'),
+            catdir($start_dir, 'salmon', $latest_salmon_version, 'lib'),
+            $ENV{'LD_LIBRARY_PATH'};
+    }
+
+    # Create repository directory and generate everything from there
     my $tmp_transcriptome_dir = qq[$tmp/transcriptome];
     make_path($tmp_transcriptome_dir);
     chdir($tmp_transcriptome_dir);
@@ -57,52 +74,40 @@ SKIP: {
     my $transcriptome_maker_log = qq[$tmp/transcriptome_maker.log];
 
     # Run Transcriptome_Maker, redirecting stdout and stderr to .log file
-    is(system(qq[$transcriptome_maker > $transcriptome_maker_log 2>&1]),
-        512, 'script fails when given no arguments');
+    is(system(qq[$transcriptome_maker >> $transcriptome_maker_log.errored 2>&1]) >> $CHILD_ERROR_SHIFT,
+        2, 'script fails when given no arguments');
 
     # Test script's options
     is(system(qq[$transcriptome_maker --genome=/path/to/fasta/ ].
-              qq[>> $transcriptome_maker_log.errored 2>&1]),
-        256, 'script fails when missing path to annotation');
+              qq[>> $transcriptome_maker_log.errored 2>&1]) >> $CHILD_ERROR_SHIFT,
+        1, 'script fails when missing path to annotation');
+
     is(system(qq[$transcriptome_maker --annotation=/path/to/annotation/ ].
-              qq[>> $transcriptome_maker_log.errored 2>&1]),
-        256, 'script fails when missing path to reference genome');
+              qq[>> $transcriptome_maker_log.errored 2>&1]) >> $CHILD_ERROR_SHIFT,
+        1, 'script fails when missing path to reference genome');
+
     is(system(qq[$transcriptome_maker --annotation=$tmp_reference_dir/annotation ].
               qq[--genome=$tmp_reference_dir/fasta --rna_seqc ].
-              qq[>> $transcriptome_maker_log.errored 2>&1]),
-        256, 'tool: rna_seqc - script fails when missing path to dictionary');
+              qq[>> $transcriptome_maker_log.errored 2>&1]) >> $CHILD_ERROR_SHIFT,
+        1, 'tool: rna_seqc - script fails when missing path to dictionary');
+
     is(system(qq[$transcriptome_maker --annotation=$tmp_reference_dir/annotation ].
               qq[--genome=$tmp_reference_dir/fasta --tophat2 ].
-              qq[>> $transcriptome_maker_log.errored 2>&1]),
-        256, 'tool: tophat2 - script fails when missing path to bowtie2 indexes');
+              qq[>> $transcriptome_maker_log.errored 2>&1]) >> $CHILD_ERROR_SHIFT,
+        1, 'tool: tophat2 - script fails when missing path to bowtie2 indexes');
 
     # test full execution
     is(system(qq[$transcriptome_maker ].
               qq[--annotation=$tmp_reference_dir/annotation ].
               qq[--genome=$tmp_reference_dir/fasta ].
               qq[--dictionary=$tmp_reference_dir/fasta ].
-              qq[--bowtie2=$tmp_reference_dir/bowtie2 ].
-              qq[> $transcriptome_maker_log 2>&1]),
+#             qq[--bowtie2=$tmp_reference_dir/bowtie2 ].
+              qq[--bowtie2=$tmp_reference_dir/bowtie2 ]) >> $CHILD_ERROR_SHIFT,
+#              qq[> $transcriptome_maker_log 2>&1]) >> $CHILD_ERROR_SHIFT,
         0, 'script runs successfully');
 
     # verify md5 checksum for all other files
     my %expected_md5 = (
-        '10X/star/chrStart.txt' => 'c8c7ad562987f74373c534f6d3e3e132',
-        '10X/star/exonInfo.tab' => '2d2accee56dd355f02f9b1d896363b79',
-        '10X/star/SAindex' => '7ca7e8e2469741cf540e9c51ace5cd6e',
-        '10X/star/transcriptInfo.tab' => '03f7ec35743d3876fcbfd615c9f25558',
-        '10X/star/chrName.txt' => '8e994d412c75a98e0233688e4cf6d7b1',
-        '10X/star/chrNameLength.txt' => 'c3ffbdc3c0adfe4d961f67ab8fc2208d',
-        '10X/star/SA' => '064f5be0a780269539d2e2deef6e89be',
-        '10X/star/chrLength.txt' => '41ab06e38c19f53ec725387d106ada0a',
-        '10X/star/sjdbList.fromGTF.out.tab' => 'd41d8cd98f00b204e9800998ecf8427e',
-        '10X/star/exonGeTrInfo.tab' => '3e56e718cc8b1454bb659aa52d363dcc',
-        '10X/star/Genome' => '3ca03428bf591c721f387762b5c01be3',
-        '10X/star/geneInfo.tab' => 'c58ab7863c15e8263ed288ce6845b7b3',
-        '10X/star/sjdbInfo.txt' => '1082ab459363b3f2f7aabcef0979c1ed',
-        '10X/star/sjdbList.out.tab' => 'd41d8cd98f00b204e9800998ecf8427e',
-        '10X/genes/genes.gtf' => '5b1f48380946eb7315e9703f1f3fd838',
-        '10X/fasta/genome.fa' => '63a3f28b06e34cdfe7c8f990961bfc2a',
         'fasta/FM180568.transcripts.fa' => '6851bdd1c6eb8d2c9af0dff519729ce6',
         'gtf/E_coli_o127_h6_str_e2348_69.gtf' => '5f0cc0bc84e8a9aeefa621c9c605487f',
         'salmon0_10/txpInfo.bin' => '85defcc2df47afd73a03f775693468e3',
@@ -124,6 +129,25 @@ SKIP: {
         'tophat2/FM180568.known.rev.2.bt2' => '2676049b65c4c0f1025a59356559feac',
         'tophat2/FM180568.known.fa.tlst' => '7470f9c9e2370035aec4452e62cc72e9',
         'tophat2/FM180568.known.3.bt2' => '4619fea360398efa5d05806e271fea35',
+    );
+
+    my %skippable_expected_md5 = (
+        '10X/star/chrStart.txt' => 'c8c7ad562987f74373c534f6d3e3e132',
+        '10X/star/exonInfo.tab' => '2d2accee56dd355f02f9b1d896363b79',
+        '10X/star/SAindex' => '7ca7e8e2469741cf540e9c51ace5cd6e',
+        '10X/star/transcriptInfo.tab' => '03f7ec35743d3876fcbfd615c9f25558',
+        '10X/star/chrName.txt' => '8e994d412c75a98e0233688e4cf6d7b1',
+        '10X/star/chrNameLength.txt' => 'c3ffbdc3c0adfe4d961f67ab8fc2208d',
+        '10X/star/SA' => '064f5be0a780269539d2e2deef6e89be',
+        '10X/star/chrLength.txt' => '41ab06e38c19f53ec725387d106ada0a',
+        '10X/star/sjdbList.fromGTF.out.tab' => 'd41d8cd98f00b204e9800998ecf8427e',
+        '10X/star/exonGeTrInfo.tab' => '3e56e718cc8b1454bb659aa52d363dcc',
+        '10X/star/Genome' => '3ca03428bf591c721f387762b5c01be3',
+        '10X/star/geneInfo.tab' => 'c58ab7863c15e8263ed288ce6845b7b3',
+        '10X/star/sjdbInfo.txt' => '1082ab459363b3f2f7aabcef0979c1ed',
+        '10X/star/sjdbList.out.tab' => 'd41d8cd98f00b204e9800998ecf8427e',
+        '10X/genes/genes.gtf' => '5b1f48380946eb7315e9703f1f3fd838',
+        '10X/fasta/genome.fa' => '63a3f28b06e34cdfe7c8f990961bfc2a',
         'RNA-SeQC/E_coli_o127_h6_str_e2348_69.gtf' => '5f0cc0bc84e8a9aeefa621c9c605487f',
     );
 
@@ -176,9 +200,6 @@ SKIP: {
     # contents, so their checksums are hard to verify but at least
     # they exist. Also included: odd per-run binary files
     my %expected_log = (
-        '10X/logs/cellranger_mkref_Log.out' => 1,
-        '10X/pickle/genes.pickle' => 1,
-        '10X/star/genomeParameters.txt' => 1,
         'salmon0_10/quasi_index.log' => 1,
         'salmon0_10/indexing.log' => 1,
         'salmon0_8/quasi_index.log' => 1,
@@ -187,6 +208,12 @@ SKIP: {
         'tophat2/logs/run.log' => 1,
         'tophat2/logs/g2f.out' => 1,
         'tophat2/logs/g2f.err' => 1,
+    );
+
+    my %skippable_expected_log = (
+        '10X/logs/cellranger_mkref_Log.out' => 1,
+        '10X/pickle/genes.pickle' => 1,
+        '10X/star/genomeParameters.txt' => 1,
     );
 
     # still in transcriptome dir...
@@ -214,6 +241,21 @@ SKIP: {
         ok(-e $file, qq[file $path exists]);
     }
 
+    SKIP: {
+        skip 'RNA-SeQC and 10X longranger pipeline cannot be installed on travis, skip testing!',
+            20 if ($ENV{'TRAVIS'});
+        foreach my $path (keys %skippable_expected_md5) {
+            my $file = catfile($tmp, q[transcriptome], $path);
+            ok(-e $file, qq[file $path exists]);
+            my $fh = IO::File->new($file, 'r');
+            is(Digest::MD5->new->addfile($fh)->hexdigest, $skippable_expected_md5{$path}, qq[match MD5 checksum of file $path]);
+            $fh->close();
+        }
+        foreach my $path (keys %skippable_expected_log) {
+            my $file = catfile($tmp, q[transcriptome], $path);
+            ok(-e $file, qq[file $path exists]);
+        }
+    }
     chdir($tmp);
 }
 
