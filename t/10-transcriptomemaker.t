@@ -13,8 +13,18 @@ use File::Temp qw/tempdir/;
 use Digest::MD5;
 use Readonly;
 use JSON;
+use IPC::Cmd qw/can_run/;
 
 Readonly::Scalar my $CHILD_ERROR_SHIFT => 8;
+Readonly::Array  my @TRAVIS_RUNNABLE_TOOLS => qw{
+                        fasta
+                        gtf
+                        rna_seqc
+                        salmon0_8
+                        salmon0_10
+                        salmon
+                        tophat2
+                    };
 
 # test the Transcriptome_Maker script by building auxiliary files for E coli
 # confirm md5 checksum or json structure match or just the presence of expected output files
@@ -51,19 +61,19 @@ SKIP: {
 
 
     # Travis CI uses these ENV vars after tools have been locally installed.
+    my ($pre_0_10_salmon_bin_path, $post_0_10_salmon_bin_path, $pre_0_10_salmon_lib_path, $post_0_10_salmon_lib_path);
     if ($ENV{'TRAVIS'}) {
-        my $old_salmon_version = $ENV{'SALMON0_8_VERSION'} // q[];
-        my $latest_salmon_version = $ENV{'SALMON0_10_VERSION'} // q[];
-        local $ENV{'PATH'} = join q[:],
-            catdir($start_dir, 'bin'),
-            catdir($start_dir, 'salmon', $old_salmon_version, 'bin'),
-            catdir($start_dir, 'salmon', $latest_salmon_version, 'bin'),
-            $ENV{'PATH'};
-        local $ENV{'LD_LIBRARY_PATH'} = join q[:],
-            catdir($start_dir, 'salmon', $old_salmon_version, 'lib'),
-            catdir($start_dir, 'salmon', $latest_salmon_version, 'lib'),
-            $ENV{'LD_LIBRARY_PATH'};
+        $pre_0_10_salmon_bin_path = q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_8_VERSION'}, 'bin');
+        $post_0_10_salmon_bin_path = q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_10_VERSION'}, 'bin');
+        $pre_0_10_salmon_lib_path = q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_8_VERSION'}, 'lib');
+        $post_0_10_salmon_lib_path = q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_10_VERSION'}, 'lib');
     }
+
+    local $ENV{'PATH'} = $ENV{'PATH'}. $pre_0_10_salmon_bin_path. $post_0_10_salmon_bin_path;
+    local $ENV{'LD_LIBRARY_PATH'} = $ENV{'LD_LIBRARY_PATH'}. $pre_0_10_salmon_lib_path. $post_0_10_salmon_lib_path;
+
+    diag explain $ENV{'PATH'};
+    diag explain $ENV{'LD_LIBRARY_PATH'};
 
     # Create repository directory and generate everything from there
     my $tmp_transcriptome_dir = qq[$tmp/transcriptome];
@@ -96,14 +106,27 @@ SKIP: {
               qq[>> $transcriptome_maker_log.errored 2>&1]) >> $CHILD_ERROR_SHIFT,
         1, 'tool: tophat2 - script fails when missing path to bowtie2 indexes');
 
-    # test full execution
-    is(system(qq[$transcriptome_maker ].
-              qq[--annotation=$tmp_reference_dir/annotation ].
-              qq[--genome=$tmp_reference_dir/fasta ].
-              qq[--dictionary=$tmp_reference_dir/fasta ].
-#             qq[--bowtie2=$tmp_reference_dir/bowtie2 ].
-              qq[--bowtie2=$tmp_reference_dir/bowtie2 ]) >> $CHILD_ERROR_SHIFT,
-#              qq[> $transcriptome_maker_log 2>&1]) >> $CHILD_ERROR_SHIFT,
+    # test full execution.
+    # In Travis CI avoid running Cellranger
+    # by explicitly listing all other tools
+    my $command = qq[$transcriptome_maker ].
+                  qq[--annotation=$tmp_reference_dir/annotation ].
+                  qq[--genome=$tmp_reference_dir/fasta ].
+                  qq[--dictionary=$tmp_reference_dir/fasta ].
+                  qq[--bowtie2=$tmp_reference_dir/bowtie2 ];
+    if ($ENV{'TRAVIS'}){
+       $command .= q[--]. join q[ --], @TRAVIS_RUNNABLE_TOOLS;
+    }
+
+
+    my $path = can_run('salmon0_10');
+    my $path2 = can_run('salmon0_8');
+    diag explain $path;
+    diag explain $path2;
+    diag explain $ENV{'PATH'};
+    diag explain $ENV{'LD_LIBRARY_PATH'};
+
+    is(system($command) >> $CHILD_ERROR_SHIFT,
         0, 'script runs successfully');
 
     # verify md5 checksum for all other files
@@ -129,6 +152,7 @@ SKIP: {
         'tophat2/FM180568.known.rev.2.bt2' => '2676049b65c4c0f1025a59356559feac',
         'tophat2/FM180568.known.fa.tlst' => '7470f9c9e2370035aec4452e62cc72e9',
         'tophat2/FM180568.known.3.bt2' => '4619fea360398efa5d05806e271fea35',
+        'RNA-SeQC/E_coli_o127_h6_str_e2348_69.gtf' => '5f0cc0bc84e8a9aeefa621c9c605487f',
     );
 
     my %skippable_expected_md5 = (
@@ -148,7 +172,6 @@ SKIP: {
         '10X/star/sjdbList.out.tab' => 'd41d8cd98f00b204e9800998ecf8427e',
         '10X/genes/genes.gtf' => '5b1f48380946eb7315e9703f1f3fd838',
         '10X/fasta/genome.fa' => '63a3f28b06e34cdfe7c8f990961bfc2a',
-        'RNA-SeQC/E_coli_o127_h6_str_e2348_69.gtf' => '5f0cc0bc84e8a9aeefa621c9c605487f',
     );
 
     # JSON files expected structures change at runtime
@@ -242,8 +265,8 @@ SKIP: {
     }
 
     SKIP: {
-        skip 'RNA-SeQC and 10X longranger pipeline cannot be installed on travis, skip testing!',
-            20 if ($ENV{'TRAVIS'});
+        skip '10X longranger pipeline cannot be installed on travis, skip testing!',
+            19 if ($ENV{'TRAVIS'});
         foreach my $path (keys %skippable_expected_md5) {
             my $file = catfile($tmp, q[transcriptome], $path);
             ok(-e $file, qq[file $path exists]);

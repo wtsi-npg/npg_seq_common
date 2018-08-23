@@ -26,6 +26,7 @@ my $requires = {
                 'IO::File'                        => 0,
                 'IO::Tee'                         => 0,
                 'IPC::Open3'                      => 0,
+                'IPC::Cmd'                        => 0,
                 'lib'                             => '0.5565',
                 'List::Util'                      => '1.21',
                 'Math::Round'                     => '0.06',
