@@ -13,7 +13,6 @@ use File::Temp qw/tempdir/;
 use Digest::MD5;
 use Readonly;
 use JSON;
-use IPC::Cmd qw/can_run/;
 
 Readonly::Scalar my $CHILD_ERROR_SHIFT => 8;
 Readonly::Array  my @TRAVIS_RUNNABLE_TOOLS => qw{
@@ -60,20 +59,18 @@ SKIP: {
     }
 
 
-    # Travis CI uses these ENV vars after tools have been locally installed.
-    my ($pre_0_10_salmon_bin_path, $post_0_10_salmon_bin_path, $pre_0_10_salmon_lib_path, $post_0_10_salmon_lib_path);
+    # Travis CI needs to find these tools
+    # after they have been installed locally
+    my $salmon_bin_path = q[];
+    my $salmon_lib_path = q[];
     if ($ENV{'TRAVIS'}) {
-        $pre_0_10_salmon_bin_path = q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_8_VERSION'}, 'bin');
-        $post_0_10_salmon_bin_path = q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_10_VERSION'}, 'bin');
-        $pre_0_10_salmon_lib_path = q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_8_VERSION'}, 'lib');
-        $post_0_10_salmon_lib_path = q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_10_VERSION'}, 'lib');
+        $salmon_bin_path = q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_8_VERSION'}, 'bin').
+                           q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_10_VERSION'}, 'bin');
+        $salmon_lib_path = q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_8_VERSION'}, 'lib').
+                           q[:]. catdir('/tmp/salmon', $ENV{'SALMON0_10_VERSION'}, 'lib');
     }
-
-    local $ENV{'PATH'} = $ENV{'PATH'}. $pre_0_10_salmon_bin_path. $post_0_10_salmon_bin_path;
-    local $ENV{'LD_LIBRARY_PATH'} = $ENV{'LD_LIBRARY_PATH'}. $pre_0_10_salmon_lib_path. $post_0_10_salmon_lib_path;
-
-    diag explain $ENV{'PATH'};
-    diag explain $ENV{'LD_LIBRARY_PATH'};
+    local $ENV{'PATH'} = $ENV{'PATH'}. $salmon_bin_path;
+    local $ENV{'LD_LIBRARY_PATH'} = $ENV{'LD_LIBRARY_PATH'}. $salmon_lib_path;
 
     # Create repository directory and generate everything from there
     my $tmp_transcriptome_dir = qq[$tmp/transcriptome];
@@ -118,15 +115,7 @@ SKIP: {
        $command .= q[--]. join q[ --], @TRAVIS_RUNNABLE_TOOLS;
     }
 
-
-    my $path = can_run('salmon0_10');
-    my $path2 = can_run('salmon0_8');
-    diag explain $path;
-    diag explain $path2;
-    diag explain $ENV{'PATH'};
-    diag explain $ENV{'LD_LIBRARY_PATH'};
-
-    is(system($command) >> $CHILD_ERROR_SHIFT,
+    is(system($command. qq[ > $transcriptome_maker_log 2>&1]) >> $CHILD_ERROR_SHIFT,
         0, 'script runs successfully');
 
     # verify md5 checksum for all other files
@@ -176,13 +165,6 @@ SKIP: {
 
     # JSON files expected structures change at runtime
     my %expected_json = (
-        '10X/reference.json' => {
-            'fasta_hash' => 'adf82a106f6fbb7b2cd5c3af8f8ac756b099fb64',
-            'genomes' => ['10X'], 'version' => undef, 'input_fasta_files' => ['FM180568.fa'],
-            'gtf_hash' => '507774471004a118beff5e72106d86dab2351d9c',
-            'input_gtf_files' => ['tmp.E_coli_o127_h6_str_e2348_69-filtered.gtf'],
-            'mem_gb' => 32, 'mkref_version' => '2.1.1', 'threads' => 4,
-        },
         'salmon0_10/refInfo.json' => {
             'ReferenceFiles' => ['../fasta/FM180568.transcripts.fa'],
         },
@@ -216,6 +198,16 @@ SKIP: {
                 'NameHash' => 'c5f182ab7e454aabd827e10ef0bfb7b944c06254b93b8bd0fdaf661307ebb16b',
                 'SeqHash' => '1e75b20b0c86e9d02035d83dca9f793d6dc25a09e6bd9ec38ed791264d4c6406',
             }
+        },
+    );
+
+    my %skippable_expected_json = (
+        '10X/reference.json' => {
+            'fasta_hash' => 'adf82a106f6fbb7b2cd5c3af8f8ac756b099fb64',
+            'genomes' => ['10X'], 'version' => undef, 'input_fasta_files' => ['FM180568.fa'],
+            'gtf_hash' => '507774471004a118beff5e72106d86dab2351d9c',
+            'input_gtf_files' => ['tmp.E_coli_o127_h6_str_e2348_69-filtered.gtf'],
+            'mem_gb' => 32, 'mkref_version' => '2.1.1', 'threads' => 4,
         },
     );
 
@@ -266,7 +258,7 @@ SKIP: {
 
     SKIP: {
         skip '10X longranger pipeline cannot be installed on travis, skip testing!',
-            19 if ($ENV{'TRAVIS'});
+            37 if ($ENV{'TRAVIS'});
         foreach my $path (keys %skippable_expected_md5) {
             my $file = catfile($tmp, q[transcriptome], $path);
             ok(-e $file, qq[file $path exists]);
@@ -274,12 +266,20 @@ SKIP: {
             is(Digest::MD5->new->addfile($fh)->hexdigest, $skippable_expected_md5{$path}, qq[match MD5 checksum of file $path]);
             $fh->close();
         }
+        foreach my $path (keys %skippable_expected_json) {
+            my $file = catfile($tmp, q[transcriptome], $path);
+            ok(-e $file, qq[file $path exists]);
+            my $json = from_json(read_file($file));
+            my $json_hash = $skippable_expected_json{$path};
+            is_deeply($json, $json_hash, qq[match contents of JSON file $path]);
+        }
         foreach my $path (keys %skippable_expected_log) {
             my $file = catfile($tmp, q[transcriptome], $path);
             ok(-e $file, qq[file $path exists]);
         }
     }
-    chdir($tmp);
+
+    chdir($start_dir);
 }
 
 1;

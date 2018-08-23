@@ -567,31 +567,37 @@ __END__
 
 =head1 NAME
 
-Ref_Maker_T - loop through all the transcriptome tools we use to build
-an index or an auxiliary file.
+Transcriptome_Maker - loop through all the transcriptome tools we use
+to build indices or auxiliary files.
 
 =head1 VERSION
 
 
 =head1 SYNOPSIS
 
-Change CWD to the output ofach tool will be written in the
-transcriptome repository. A path to the annotation file in GTF2/GFF3
-format - used to build the gtf file that will be used by the other
-tools - and a path to the reference genome in fasta format are always
-required.
+Change CWD to the directory where the output of each tool will be
+written in the transcriptome repository. A path to the annotation
+file in GTF2/GFF3 format - used to build the gtf file that will be
+used by the other tools - and a path to the reference genome in
+fasta format are always required.
 
-  perl Ref_Maker_T --genome=/path/to/ref/ --annotation=/path/to/annotation/ [options]
+  perl Transcriptome_Maker --genome=/path/to/ref/ \
+  --annotation=/path/to/annotation/ \
+  [options]
 
-If you pass tool names as arguments only the indexes or auxiliary files
-of those will be built.
+If you pass tool names as arguments only the indexes or auxiliary
+files of those will be built.
 
-  perl Ref_Maker_T --genome=/path/to/ref/ --annotation=/path/to/annotation/ --salmon --salmon0_8
+  perl Transcriptome_Maker --genome=/path/to/ref/ \
+  --annotation=/path/to/annotation/ \
+  --salmon --salmon0_8
 
 Some tools need to know the path to specific files to work. E.g.
 Tophat2, requires a path where appropriate bowtie2-index files exist.
 
-  perl Ref_Maker_T --genome=/path/to/ref/ --annotation=/path/to/annotation/ --bowtie2=/path/to/bt2/ --tophat2
+  perl Transcriptome_Maker --genome=/path/to/ref/ \
+  --annotation=/path/to/annotation/ \
+  --bowtie2=/path/to/bt2/ --tophat2
 
 Under LSF (tl;dr) if running all of the tools, reserve at least 35GB
 of memory and 16 cores.
@@ -606,7 +612,11 @@ files only (e.g. RNA-SeQC, gtf) then memory requirements are minimal,
 4Gb should be enough. E.g. for a do-all run of a mouse genome, syntax
 would be:
 
-  bsub -n 16 -M35000 -R'select[mem>35000] rusage[mem=35000] span[hosts=1]' perl Ref_Maker_T --genome=/path/to/ref/
+  bsub -n 16 -M35000 -R'select[mem>35000] rusage[mem=35000] span[hosts=1]' \
+  perl Transcriptome_Maker --genome=/path/to/ref/ \
+  --annotation=/path/to/annotation/ \
+  --dictionary=/path/to/dict/ \
+  --bowtie2=/path/to/bt2/
 
 =head1 SUBROUTINES/METHODS
 
