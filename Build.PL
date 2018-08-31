@@ -19,7 +19,6 @@ my $requires = {
                 'File::Slurp'                     => '9999.13',
                 'File::Spec'                      => 0,
                 'File::Spec::Functions'           => 0,
-                'File::stat'                      => 0,
                 'File::Temp'                      => 0,
                 'File::Which'                     => 0,
                 'FindBin'                         => '1.47',
