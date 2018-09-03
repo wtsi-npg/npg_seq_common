@@ -27,9 +27,13 @@ Readonly::Array  my @TRAVIS_RUNNABLE_TOOLS => qw{
 
 # test the Transcriptome_Maker script by building auxiliary files for E coli
 # confirm md5 checksum or json structure match or just the presence of expected output files
-
+# 3rd party tools required:
+# - Salmon version <= 0.9.* [https://combine-lab.github.io/salmon/]
+# - Salmon version >= 0.10.* [https://combine-lab.github.io/salmon/]
+# - Tophat2 version >= 2.0.14 [https://ccb.jhu.edu/software/tophat/index.shtml]
+# - Gffread version >= 0.9.* [http://ccb.jhu.edu/software/stringtie/gff.shtml]
 SKIP: {
-    skip 'Third party bioinformatics tools required. Set TOOLS_INSTALLED to true to run.',
+    skip 'Third party bioinformatics tools required. Install, add to PATH and set TOOLS_INSTALLED to true to run.',
         107 unless ($ENV{'TOOLS_INSTALLED'});
 
     my $start_dir = getcwd();

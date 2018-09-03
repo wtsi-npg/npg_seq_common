@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use autodie qw(:all);
 use FindBin qw($Bin);
 use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
 use Carp;
@@ -13,7 +14,6 @@ use File::Copy;
 use IO::File;
 use Getopt::Long;
 use List::Util qw(sum none);
-use autodie qw(:all);
 use Readonly;
 use Pod::Usage qw(pod2usage);
 use feature qw(say);
@@ -99,7 +99,6 @@ sub main {
 
     my (%arguments, %index_command, @failed, @passed, %subs);
 
-    # Build the indexing arguments
     $subs{'cellranger'} = \&cellranger;
     $subs{'fasta'}      = \&fasta;
     $subs{'rna_seqc'}   = \&rna_seqc;
@@ -108,8 +107,8 @@ sub main {
     $subs{'salmon'}     = \&salmon_latest;
     $subs{'tophat2'}    = \&tophat2;
 
-    # Create common annotation in local gtf directory first then
-    # remove it from the build list in case it's there via CLI
+    # First, create common annotation in local gtf directory, then
+    # remove it from the build list in case it was specified in the command line
     if (! gtf('gtf', $ref_genome_file_abs_path, $annot_file_abs_path)) {
         croak q[Failed to create custom annotation gtf.];
     } else {
@@ -140,6 +139,10 @@ sub main {
     }
 }
 
+
+#########################################
+# Generic subs used by the tool methods
+#########################################
 
 sub clean_slate {
     my ($dirname) = @_;
@@ -211,10 +214,11 @@ sub get_common_gtf {
     my $gtf_abs_path = abs_path(qq[gtf/$gtf[0]]);
     return $gtf_abs_path;
 }
+
+
 ####################
 # Tool methods
 ####################
-
 
 sub cellranger {
     my ($tool, $genome_abs_path) = @_;
