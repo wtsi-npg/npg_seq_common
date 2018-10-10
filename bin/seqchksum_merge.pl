@@ -24,6 +24,7 @@ use Getopt::Std;
 use Readonly;
 use English qw(-no_match_vars);
 use File::Basename;
+use File::Slurp;
 use bignum;
 
 our $VERSION = '0';
@@ -52,7 +53,7 @@ my %flag_fnc = (
 	p => $PARTITION,
 );
 my %opts;
-getopts('a:c:m:p:l:h', \%opts);
+getopts('a:c:m:p:l:f:h', \%opts);
 
 # default function map matches the layout of bamseqchksum output (version 0.0.183 currently)
 my @fnc_map = ();
@@ -78,9 +79,22 @@ for my $flag (keys %flag_fnc) {
 
 my $outrows; # merged results accumulated here
 my $column_count;
+ 
+my @globbed_files = ();
+if($opts{f}) { # FOFN - file of globs for input file search
+  my @input_globs = read_file($opts{f}, chomp => 1);
+  for my $cram_file_name_glob (@input_globs) {
+    my @crams = glob $cram_file_name_glob or carp("Cannot find any cram files using $cram_file_name_glob");
+
+    ## no critic (RegularExpressions::RequireDotMatchAnything)
+    ## no critic (RegularExpressions::RequireExtendedFormatting)
+    ## no critic (RegularExpressions::RequireLineBoundaryMatching)
+    push @globbed_files, (map{s/[.]cram$/.seqchksum/r} @crams);
+  }
+}
 
 # process the input files
-for my $fn (@ARGV) {
+for my $fn (@globbed_files, @ARGV) {
         my @inrows = ();
         if($fn =~ m/[.](sam|bam|cram)$/smx) {
                 open my $f, q[-|], qq[cat $fn | bamseqchksum inputformat=$1] or croak qq[Error: Failed to open $fn for input];

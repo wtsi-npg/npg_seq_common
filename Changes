@@ -1,5 +1,8 @@
 LIST OF CHANGES
 
+  - add -f flag seqchksum_merge.pl script to allow specification of a file
+      of globs to identify inputs
+
 release 51.0
   - in preparation for moving to bwa0_6 as default bwa version, added tests
       which check that the code works for soft-linked bwa
