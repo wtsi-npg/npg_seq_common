@@ -2,6 +2,9 @@ LIST OF CHANGES
 
   - add -f flag seqchksum_merge.pl script to allow specification of a file
       of globs to identify inputs
+  - we will stop generating fastqcheck files soon, so we should not
+    try to get the number of reads in a fastq file from information
+    in a fastqcheck file
 
 release 51.0
   - in preparation for moving to bwa0_6 as default bwa version, added tests

@@ -1,13 +1,11 @@
 use strict;
 use warnings;
-use Test::More tests => 29;
-use English qw(-no_match_vars);
+use Test::More tests => 28;
 use Test::Exception;
 use File::Temp qw/tempdir/;
 use Cwd qw/cwd/;
 use File::Compare;
 
-my $source1 = q[t/data/s1.fastq];
 my $source2 = q[t/data/s2.fastq];
 my $dir = tempdir(CLEANUP => 1);
 
@@ -18,15 +16,11 @@ my @subs = qw(read_count split_reads );
 use_ok( 'npg_common::extractor::fastq', @subs);
 
 foreach my $sub (@subs) {
-  can_ok(__PACKAGE__, $sub);
+   can_ok(__PACKAGE__, $sub);
 }
 
 {
-  my $count = read_count(q[t/data/ss1.fastq]);
-  is($count, '26', 'read count when fastqcheck file is present');
-
-  $count = read_count($source2);
-  is($count, '26', 'read count when fastqcheck file is not present');  
+   is(read_count($source2), '26', 'read count when fastqcheck file is not present');  
 }
 
 {
@@ -60,7 +54,7 @@ foreach my $sub (@subs) {
 {
    my $current = cwd;
    chdir $dir;
-   throws_ok {split_reads($current . q[/t/data/s1.fastq], [37])} qr/is too short/, 'error when the read is too short';
+   throws_ok {split_reads($current . q[/t/data/s2.fastq], [37])} qr/is too short/, 'error when the read is too short';
    chdir $current;
 }
 
@@ -95,6 +89,5 @@ foreach my $sub (@subs) {
    ok(compare(q[t/data/1008_1_1.fastq], $dir . q[/] . $f1)==0, 'correct output for a forward file');
    ok(compare(q[t/data/1008_1_2.fastq], $dir . q[/] . $f2)==0, 'correct output for a reverse file'); 
 }
-
 
 1;

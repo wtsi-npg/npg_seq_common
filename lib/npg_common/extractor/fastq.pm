@@ -1,24 +1,13 @@
-#########
-# Author:        Marina Gourtovaia
-# Created:       03 April 2009
-#
-
 package npg_common::extractor::fastq;
 
 use strict;
 use warnings;
 use Carp;
 use English qw(-no_match_vars);
-use Math::Round qw(round);
 use Exporter qw(import);
 use IO::Tee;
 use Fcntl ':seek';
-use File::Spec;
-use File::stat;
-use File::Basename;
 use Readonly;
-
-use npg_common::fastqcheck;
 
 our $VERSION = '0';
 
@@ -27,14 +16,11 @@ our @EXPORT_OK = qw(
                     split_reads
                    );
 
-Readonly::Scalar our $LINES_PER_READ  => 4;
+Readonly::Scalar my $LINES_PER_READ => 4;
 
-
-sub _line_count_by_counting {
-
+sub read_count {
     my $fname = shift;
 
-    local ($ENV{PATH}) = $ENV{PATH} =~ /(.*)/smx;
     my $exe = qq[wc -l $fname];
     open my $fh, q[-|], $exe or croak $ERRNO;
     my $line_count = <$fh>;
@@ -42,37 +28,11 @@ sub _line_count_by_counting {
     ($line_count) = $line_count =~ /(\d+)/smx;
     if (defined $line_count) {
         $line_count = int $line_count/$LINES_PER_READ;
-    }
-    return $line_count;
-}
-
-
-
-
-
-sub read_count {
-
-    my $fname = shift;
-    my $fqname = $fname . q[check];
-    my $num_reads;
-    if (-e $fqname) {
-        eval {
-            $num_reads = npg_common::fastqcheck->new(fastqcheck_path => $fqname)->num_reads();
-            1;
-	} or do {
-            if ($EVAL_ERROR) {
-                $num_reads = _line_count_by_counting($fname);
-	    }
-        };
     } else {
-        $num_reads = _line_count_by_counting($fname);
-    }
-
-    if (!defined $num_reads) {
         croak "Failed to get a line count for file $fname";
     }
 
-    return $num_reads;
+    return $line_count;
 }
 
 
@@ -197,8 +157,8 @@ npg_common::extractor::fastq
 
 =head1 VERSION
 
-
 =head1 SYNOPSIS
+
 This module is for extracting parts of fastq files.
 
 =head1 DESCRIPTION
@@ -206,12 +166,8 @@ This module is for extracting parts of fastq files.
 =head1 SUBROUTINES/METHODS
 
 =head2 read_count - returns a number of reads in a fastq file.
-If a fastqcheck file is present alongside the first fastq file,
-the read count is taken from there. The fallback is a slow
-system call to wc.
 
   my $count = line_count($my_path);
-
 
 =head2 split_reads - depending on input, either trims the number of bases to the requested number
 or, if two numbers are given, one output file has the trimmed reads and another has the bases that
@@ -274,7 +230,7 @@ Files to output can be given as a third argument
 
 =item Carp
 
-=item English -no_match_vars
+=item English
 
 =item Readonly
 
@@ -282,15 +238,7 @@ Files to output can be given as a third argument
 
 =item Fcntl
 
-=item Math::Round qw(round);
-
-=item npg_common::fastqcheck
-
-=item File::Spec
-
-=item File::stat
-
-=item File::Basename
+=item IO::Tee
 
 =back
 
