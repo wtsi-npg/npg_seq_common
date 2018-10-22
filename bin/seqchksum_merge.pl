@@ -79,7 +79,7 @@ for my $flag (keys %flag_fnc) {
 
 my $outrows; # merged results accumulated here
 my $column_count;
- 
+
 my @globbed_files = ();
 if($opts{f}) { # FOFN - file of globs for input file search
   my @input_globs = read_file($opts{f}, chomp => 1);
