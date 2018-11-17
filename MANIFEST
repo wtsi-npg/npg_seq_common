@@ -3,7 +3,6 @@ Changes
 data/adapters.fasta
 lib/npg_common/Alignment.pm
 lib/npg_common/extractor/fastq.pm
-lib/npg_common/fastqcheck.pm
 lib/npg_common/roles/log.pm
 lib/npg_common/roles/SequenceInfo.pm
 lib/npg_common/roles/software_location.pm
@@ -21,7 +20,6 @@ t/00-podcoverage.t
 t/00-pod.t
 t/10-Alignment.t
 t/10-extractor-fastq.t
-t/10-fastqcheck.t
 t/10-refmaker.t
 t/10-scripts_compile.t
 t/10-sequence-reference-base_count.t
@@ -34,7 +32,6 @@ t/bin/samtools
 t/data/1008_1_1.fastq
 t/data/1008_1_2.fastq
 t/data/1008_s_1.fastq
-t/data/2549_1_2.fastqcheck
 t/data/aligners/0.010/bin/tool_in_bin_with_no_version
 t/data/aligners/0.010/tool_not_in_bin_with_no_version
 t/data/aligners/bin/bowtie
@@ -82,13 +79,7 @@ t/data/scratch/This_dir_is_wiped_during_tests
 t/data/ss1.fastq
 t/data/ss1_split3.fastq
 t/data/sss1.fastq
-t/data/sss1.fastqcheck
-t/data/test1.fastqcheck
-t/data/test2.fastqcheck
 t/data/test.bai
 t/data/test.bam
-t/data/test.fastqcheck
-t/data/wrong.fastqcheck
-t/data/zero.fastqcheck
 t/lib/npg_common/role_tests/log.pm
 t/perlcriticrc
