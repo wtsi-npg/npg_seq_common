@@ -1,10 +1,13 @@
 LIST OF CHANGES
 
+
+release 51.1
   - add -f flag seqchksum_merge.pl script to allow specification of a file
       of globs to identify inputs
   - we will stop generating fastqcheck files soon, so we should not
     try to get the number of reads in a fastq file from information
     in a fastqcheck file
+  - add HISAT2 index build to Ref_Maker
 
 release 51.0
   - in preparation for moving to bwa0_6 as default bwa version, added tests
