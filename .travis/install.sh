@@ -11,7 +11,6 @@
 set -e -x
 
 sudo apt-get install libgd2-xpm-dev # For npg_tracking
-sudo apt-get install liblzma-dev # For npg_qc
 
 ### Install third party tools ###
 
@@ -101,10 +100,6 @@ make
 # for other tools to find samtools and its alias samtools_irods
 ln -s /tmp/samtools/samtools /tmp/bin/samtools_irods
 ln -s /tmp/samtools/samtools /tmp/bin/samtools
-# for compiling tools in npg_qc since they expect to find samtools headers in /include
-# relative to which samtools in PATH
-ln -s /tmp/samtools /tmp/samtools/lib
-ln -s /tmp/samtools /tmp/samtools/include
 popd
 
 # picard
@@ -139,10 +134,8 @@ cpanm --no-lwp --notest https://github.com/wtsi-npg/perl-dnap-utilities/releases
 cd /tmp
 git clone --branch devel --depth 1 https://github.com/wtsi-npg/ml_warehouse.git ml_warehouse.git
 git clone --branch devel --depth 1 https://github.com/wtsi-npg/npg_tracking.git npg_tracking.git
-git clone --branch devel --depth 1 https://github.com/wtsi-npg/npg_qc.git npg_qc.git
 
-
-repos="/tmp/ml_warehouse.git /tmp/npg_tracking.git /tmp/npg_qc.git"
+repos="/tmp/ml_warehouse.git /tmp/npg_tracking.git"
 
 for repo in $repos
 do
