@@ -27,7 +27,6 @@ my $requires = {
                 'IPC::Open3'                      => 0,
                 'lib'                             => '0.5565',
                 'List::Util'                      => '1.21',
-                'Math::Round'                     => '0.06',
                 'MIME::Lite'                      => '3.024',
                 'Moose'                           => '0.93',
                 'Moose::Meta::Class'              => '0',
@@ -45,7 +44,6 @@ my $requires = {
                 'strict'                          => '1.03', 
                 'warnings'                        => '1.05',
 
-                'npg_qc::Schema'                            => 0,
                 'npg_tracking::data::reference::list'       => 0,
                 'npg_tracking::util::abs_path'              => 0,         
 };
