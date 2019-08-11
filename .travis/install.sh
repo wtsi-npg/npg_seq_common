@@ -140,14 +140,13 @@ popd
 
 # CPAN as in npg_npg_deploy
 cpanm --notest --reinstall App::cpanminus
-cpanm --no-lwp --notest https://github.com/wtsi-npg/perl-dnap-utilities/releases/download/${DNAP_UTILITIES_VERSION}/WTSI-DNAP-Utilities-${DNAP_UTILITIES_VERSION}.tar.gz
 
 # WTSI NPG Perl repo dependencies
 cd /tmp
-git clone --branch devel --depth 1 https://github.com/wtsi-npg/ml_warehouse.git ml_warehouse.git
+git clone --branch devel --depth 1 https://github.com/wtsi-npg/npg_tracking.git perl-dnap-utilities.git
 git clone --branch devel --depth 1 https://github.com/wtsi-npg/npg_tracking.git npg_tracking.git
 
-repos="/tmp/ml_warehouse.git /tmp/npg_tracking.git"
+repos="/tmp/perl-dnap-utilities.git /tmp/npg_tracking.git"
 
 for repo in $repos
 do
