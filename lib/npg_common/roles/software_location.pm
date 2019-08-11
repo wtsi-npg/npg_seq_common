@@ -17,7 +17,7 @@ our $VERSION = '0';
 Readonly::Array my @TOOLS => qw/ bwa bwa0_6 minimap2 bowtie
                                  samtools samtools_irods
                                  java star hisat2
-                                 gatk /;
+                                 gatk bcftools /;
 
 subtype 'NpgCommonResolvedPathExecutable'
       => where { ((abs_path($_) || q[]) eq $_) && ( -x ) },

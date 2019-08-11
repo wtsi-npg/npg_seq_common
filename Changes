@@ -1,6 +1,7 @@
 LIST OF CHANGES
 
-  - accessor for gatk command, gatk_cmd, created
+  - accessor for gatk command, gatk_cmd, and bcftools,
+    bcftools_cmd, created
 
 release 51.2
   - a parser for fastqcheck files is removed
