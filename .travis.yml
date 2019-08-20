@@ -12,10 +12,12 @@ language: perl
 perl:
   - "5.22-shrplib"
 
+dist:
+  - precise
+
 env:
   global:
     - SH=bash
-    - DNAP_UTILITIES_VERSION="0.5.1"
     - BWA0_6_VERSION="v0.7.17"
     - BLAT_VERSION="35"
     - BOWTIE_VERSION="v1.0.1-dkj-fopen_with_MM"
@@ -34,7 +36,7 @@ env:
     - CLASSPATH="/tmp/picard-tools-${PICARD_VERSION}"
     - PATH="$PATH:/tmp/bin:/tmp/biobambam2/bin:$HOME/bin/$MACHTYPE"
     - LD_LIBRARY_PATH="/usr/local/lib:$HOME/lib/$MACHTYPE"
-
+    - WTSI_NPG_GITHUB_URL=https://github.com/wtsi-npg
 
 before_install:
  - ./.travis/before_install.sh
