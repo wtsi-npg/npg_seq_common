@@ -10,11 +10,9 @@ sudo: required
 language: perl
 dist:
   - bionic
-￼perl:
-￼  - "5.26-shrplib"
-￼services:
-￼  - mysql
-￼
+perl:
+  - "5.26-shrplib"
+
 env:
   global:
     - SH=bash
