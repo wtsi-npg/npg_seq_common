@@ -1,7 +1,7 @@
 LIST OF CHANGES
 
 release 51.3.0
-  - pin the Travis build to Ubuntu precise
+  - pin the Travis build to Ubuntu bionic
 
 release 51.2
   - a parser for fastqcheck files is removed
