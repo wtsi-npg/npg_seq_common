@@ -8,13 +8,13 @@
 sudo: required
 
 language: perl
-
-perl:
-  - "5.22-shrplib"
-
 dist:
-  - precise
-
+  - bionic
+￼perl:
+￼  - "5.26-shrplib"
+￼services:
+￼  - mysql
+￼
 env:
   global:
     - SH=bash
