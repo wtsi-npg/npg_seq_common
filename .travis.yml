@@ -10,6 +10,10 @@ sudo: required
 language: perl
 dist:
   - bionic
+addons:
+  apt:
+    packages:
+    - libgd-dev
 perl:
   - "5.26-shrplib"
 
