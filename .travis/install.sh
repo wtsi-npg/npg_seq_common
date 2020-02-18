@@ -10,8 +10,6 @@
 
 set -e -x
 
-sudo apt-get install libgd2-xpm-dev # For npg_tracking
-
 ### Install third party tools ###
 
 pushd /tmp
@@ -137,8 +135,6 @@ done
 popd
 
 # Third party tools install done
-
-sudo apt-get install libgd2-xpm-dev # for npg_tracking
 cpanm --quiet --notest LWP::Protocol::https
 
 # Git branch to merge to or custom branch
