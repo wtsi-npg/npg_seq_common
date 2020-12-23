@@ -1,0 +1,211 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use FindBin qw($Bin);
+use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
+use Perl6::Slurp;
+use File::Basename;
+use Data::Dump qw(pp);
+use Log::Log4perl qw(:easy);
+
+our $VERSION = '0';
+
+Log::Log4perl->easy_init({layout => '%d %-5p %c - %m%n',
+                          level  => $INFO,
+                          utf8   => 1});
+my $logger = Log::Log4perl->get_logger();
+
+##no critic (ErrorHandling::RequireCarping)
+
+my $ref_path = $ARGV[0];
+$ref_path or ($logger->fatal('Reference FASTA file should be given') and die);
+$logger->info("Read from $ref_path");
+my $destination = $ARGV[1];
+$destination or $logger->info(
+  'Destination not given - not appending to metareference');
+$destination and $logger->info("Write to $destination");
+
+my $rmap = _generate_replacement_map();
+if ($destination) {
+  _replace_and_append($rmap);
+} else {
+  $logger->info(pp $rmap);
+}
+
+sub _generate_replacement_map {
+
+  my $names_map = {};
+  my @contig_names = slurp q[-|], q[grep], q[>], $ref_path;
+  for my $cn (@contig_names) {
+    my @a = split /\s/xms, $cn;
+    exists $names_map->{$a[0]} and $logger->fatal(
+      "Repeating short contig name $a[0] in $ref_path") and die;
+    $names_map->{$a[0]} = $cn;
+  }
+
+  my ($link) = $ref_path =~ /\A(.+\/default)\/.+/xms;
+  $link or ($logger->fatal("$ref_path does not contain default link") and die);
+  -l $link or ($logger->fatal("$link is not a soft link") and die);
+  my @path_components = split /\//xms, $link;
+  pop @path_components;
+  my $species = pop @path_components;
+  my $strain = slurp q[-|], q[readlink], $link;
+  $strain or ($logger->fatal("Failed to read target for $link") and die);
+  $strain =~ s/\s+\Z//xms;
+  $strain =~ s/\/\Z//xms;
+
+  my $annotation = join q[:], $species, $strain, q[];
+  my $replacement_map = {};
+  foreach my $cn (values %{$names_map}) {
+    $replacement_map->{$cn} = q[>] . $annotation . substr($cn, 1) . qq[\n];
+  }
+
+  return $replacement_map;
+}
+
+sub _replace_and_append {
+  my $replacement_map = shift;
+
+  open my $fhs, q[<], $ref_path or
+    ($logger->fatal("Failed to open $ref_path for reading") and die);
+  open my $fht, q[>>], $destination or
+    ($logger->fatal("Failed to open $destination for writing") and die);
+
+  my $close_fh = sub {
+    close $fhs or $logger->warn("Failed to close $ref_path");
+    close $fht or $logger->warn("Failed to close $destination");
+    return 1;
+  };
+
+  while (my $ln = <$fhs>) {
+    if ($ln =~ /\A>/xms) {
+      my $original = $ln;
+      $ln = $replacement_map->{$ln};
+      if (not $ln) {
+        $close_fh->();
+        $logger->fatal("Failed to find replacement for $original");
+        die;
+      }
+    }
+    print ${fht} $ln or
+      ($close_fh->() and $logger->fatal("failed to print to $destination") and die);
+  }
+  $close_fh->();
+
+  return;
+}
+
+exit 0;
+
+__END__
+
+=head1 NAME
+
+metagenomics_reference_builder
+
+=head1 USAGE
+
+=head1 REQUIRED ARGUMENTS
+
+ At least one argument, which is a source reference FASTA file path.
+
+=head1 OPTIONS
+
+=head1 EXIT STATUS
+
+=head1 CONFIGURATION
+
+=head1 SYNOPSIS
+
+metagenomics_reference_builder ref_fasta_path
+metagenomics_reference_builder ref_fasta_path metag_ref_path
+
+=head1 DESCRIPTION
+
+With one argument this script inspects names of the contigs and
+outputs to log proposed substitutions for them. With two arguments
+the script reads the reference FASTA file given as the first argument,
+makes substitutions in contig names and appends the changed reference
+to the file given as the second argument.
+
+Names of the contigs are changed in order to guarantee their uniquness
+across a large collection of references. For example,
+
+ >ENA|CP001937|CP001937.1 Acinetobacter baumannii MDR-ZJ06
+
+is changed to
+
+ >Acinetobacter_baumannii:MDR-ZJ06:ENA|CP001937|CP001937.1 Acinetobacter baumannii MDR-ZJ06
+
+First parts of the original contig names (up to the first white space)
+are checked for uniqueness within the original reference fASTA file.
+
+The scripts can be used to build a large reference for metagenomics
+studies from multiple reference FASTA files. Example:
+
+  cat genomes_all_list | \
+  xargs -l1 -ixxx metagenomics_reference_builder \
+  xxx $PWD/metag_$(date +"%F_%T").fasta 2>&1 | \
+  tee  $(date +"%F_%T")_meta_fasta_builder.log
+
+It is assumed that the genomes_all_list file contains a list of paths
+for individual references and that each path contains a component called
+'default', which is a soft link for a directory named after a strain
+or genome version. A directory upstream from the 'default' should be
+names after the species. Example:
+
+ /references/Aspergillus_fumigatus/default/fasta/GCA_000002655.1.fasta
+ /references/Bacillus_thuringiensis/default/fasta/CM000747.1.fasta
+
+=head1 SUBROUTINES/METHODS
+
+=head1 DIAGNOSTICS
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+=head1 DEPENDENCIES
+
+=over
+
+=item strict
+
+=item warnings
+
+=item lib
+
+=item FindBin
+
+=item Perl6::Slurp
+
+=item File::Basename
+
+=item Data::Dump
+
+=back
+
+=head1 INCOMPATIBILITIES
+
+=head1 BUGS AND LIMITATIONS
+
+=head1 AUTHOR
+
+Marina Gourtovaia
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2020 Genome Research Ltd.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+

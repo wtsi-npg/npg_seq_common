@@ -12,6 +12,7 @@ MANIFEST
 README
 bin/base_count_maker
 bin/FastaFormat
+bin/metagenomics_reference_builder
 bin/npg_mail_cron_output
 bin/Ref_Maker
 t/00-critic.t

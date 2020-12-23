@@ -1,5 +1,9 @@
 LIST OF CHANGES
 
+  - a script for building a single reference from multiple reference
+    fasta files; an identifier inambigiously linking back to the
+    original reference file is added to every contig name
+
 release 51.3.1
   -  use GD dev package name that works for Travis CI
 
