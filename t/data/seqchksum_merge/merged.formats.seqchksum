@@ -1,11 +1,11 @@
+	all	0		1	1	1	1
+	pass	0		1	1	1	1
+###	set	count		b_seq	name_b_seq	b_seq_qual	b_seq_tags(BC,FI,QT,RT,TC)
+21908_1#1	all	2		2bd5e4bd	1adea868	77eac752	2ed7894a
+21908_1#1	pass	2		2bd5e4bd	1adea868	77eac752	2ed7894a
 21908_1#11	all	2		6003bd48	794b102e	520634c8	28343cc2
 21908_1#11	pass	2		6003bd48	794b102e	520634c8	28343cc2
 21908_1#12	all	4		75ef838e	b33466d	dd143aa	50a1a39b
 21908_1#12	pass	4		75ef838e	b33466d	dd143aa	50a1a39b
-21908_1#1	all	2		2bd5e4bd	1adea868	77eac752	2ed7894a
-21908_1#1	pass	2		2bd5e4bd	1adea868	77eac752	2ed7894a
-	all	0		1	1	1	1
 all	all	8		7edbd41b	7f03b4dc	2dd05aa0	67a2f7c6
 all	pass	8		7edbd41b	7f03b4dc	2dd05aa0	67a2f7c6
-	pass	0		1	1	1	1
-###	set	count		b_seq	name_b_seq	b_seq_qual	b_seq_tags(BC,FI,QT,RT,TC)
