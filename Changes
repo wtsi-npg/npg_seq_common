@@ -1,5 +1,7 @@
 LIST OF CHANGES
 
+  - remove logger role, which is no longer in use
+
 release 51.3.1
   -  use GD dev package name that works for Travis CI
 

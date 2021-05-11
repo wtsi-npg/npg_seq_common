@@ -3,7 +3,6 @@ Changes
 data/adapters.fasta
 lib/npg_common/Alignment.pm
 lib/npg_common/extractor/fastq.pm
-lib/npg_common/roles/log.pm
 lib/npg_common/roles/SequenceInfo.pm
 lib/npg_common/roles/software_location.pm
 lib/npg_common/sequence/reference/base_count.pm
@@ -23,7 +22,6 @@ t/10-extractor-fastq.t
 t/10-refmaker.t
 t/10-scripts_compile.t
 t/10-sequence-reference-base_count.t
-t/40-roles-log.t
 t/40-roles-SequenceInfo.t
 t/40-roles-software_location.t
 t/bin/bwa
@@ -81,5 +79,4 @@ t/data/ss1_split3.fastq
 t/data/sss1.fastq
 t/data/test.bai
 t/data/test.bam
-t/lib/npg_common/role_tests/log.pm
 t/perlcriticrc
