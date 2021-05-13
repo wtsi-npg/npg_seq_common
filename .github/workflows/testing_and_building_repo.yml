@@ -94,14 +94,10 @@ jobs:
           eval $(perl -I ~/perl5ext/lib/perl5/ -Mlocal::lib=~/perl5ext)
           eval $(perl -I ~/perl5ext/lib/perl5/ -Mlocal::lib=~/perl5npg)
           export TEST_AUTHOR=1
-          #export TOOLS_INSTALLED=1 # Skipped so 10-refmaker.t passes
-          export PATH="$PATH:/tmp/bin:/tmp/biobambam2/bin:$HOME/bin/$MACHTYPE"
           export PATH="/home/runner/conda/envs/test-environment/bin:$PATH"
           export LD_LIBRARY_PATH="/usr/local/lib:$HOME/lib/$MACHTYPE"
-          export CLASSPATH="/tmp/picard-tools-${PICARD_VERSION}"
           perl Build.PL && ./Build test --verbose && ./Build install
       env:
-        PICARD_VERSION: "1.72"
         MACHTYPE: "`uname -m`"
         
     # Archive logs if failure
