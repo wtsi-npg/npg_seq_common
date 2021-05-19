@@ -11,7 +11,7 @@ jobs:
       run:
         shell: bash -l -e -o pipefail {0}
     env:
-      WSI_CONDA_CHANNEL: "https://dnap.cog.sanger.ac.uk/npg/conda/prod/generic"
+      WSI_CONDA_CHANNEL: "https://dnap.cog.sanger.ac.uk/npg/conda/devel/generic"
 
     name: Distribution Perl on ${{ matrix.os }} 
     steps:
@@ -67,7 +67,7 @@ jobs:
           conda install --name "$CONDA_TEST_ENV" biobambam2
           conda activate "$CONDA_TEST_ENV"
       env:
-        CONDA_CHANNEL: https://dnap.cog.sanger.ac.uk/npg/conda/prod/generic
+        CONDA_CHANNEL: https://dnap.cog.sanger.ac.uk/npg/conda/devel/generic
         CONDA_TEST_ENV: test-environment
           
     - name: install perl deps
