@@ -26,7 +26,7 @@ is(system("$startDir/bin/seqchksum_merge.pl $seqchksum_data/target.seqchksum $se
 is(system("cmp -s $tmpdir/merged.matching.seqchksum $seqchksum_data/merged.seqchksum"), 0, 'seqchksum_merge.pl matching cmp exit status');
 
 # merge sam, bam, cram and seqchksum files - N.B. sort order isn't guaranteed so sort results before comparing
-is(system("$startDir/bin/seqchksum_merge.pl $seqchksum_data/format1.sam $seqchksum_data/format2.bam $seqchksum_data/format3.cram $seqchksum_data/format4.seqchksum | sort > $tmpdir/merged.formats.matching.seqchksum"), 0, 'seqchksum_merge.pl create different formats test output exit status');
+is(system("export LC_ALL=C; $startDir/bin/seqchksum_merge.pl $seqchksum_data/format1.sam $seqchksum_data/format2.bam $seqchksum_data/format3.cram $seqchksum_data/format4.seqchksum | sort > $tmpdir/merged.formats.matching.seqchksum"), 0, 'seqchksum_merge.pl create different formats test output exit status');
 is(system("cmp -s $tmpdir/merged.formats.matching.seqchksum $seqchksum_data/merged.formats.seqchksum"), 0, 'seqchksum_merge.pl different formats cmp exit status');
 
 # the files used for merge contain different read groups
