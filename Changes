@@ -1,6 +1,8 @@
 LIST OF CHANGES
 
   - remove logger role, which is no longer in use
+  - remove reference builder, which was oved to a different git package
+  - delete unused test data
 
 release 51.3.1
   -  use GD dev package name that works for Travis CI
