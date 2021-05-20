@@ -7,14 +7,17 @@
 #   https://github.com/wtsi-npg/data_handling
 #   https://github.com/wtsi-npg/npg_qc
 
-
 set -e -x
 
-unset PERL5LIB
+sudo apt-get update -qq
 
-cpanm --notest --installdeps . || find /home/travis/.cpanm/work -cmin -1 -name '*.log' -exec tail -n20  {} \;
-perl Build.PL
-./Build
+# shellcheck source=/dev/null
 
-./Build test --verbose
+# Dummy executable files generated for tests use #!/usr/local/bin/bash
+sudo mkdir -p /usr/local/bin
+sudo ln -s /bin/bash /usr/local/bin/bash
+/usr/local/bin/bash --version
+
+# Install 3rd party tools to /tmp/bin
+mkdir -p /tmp/bin
 
