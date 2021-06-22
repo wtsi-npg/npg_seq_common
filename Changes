@@ -1,8 +1,11 @@
 LIST OF CHANGES
 
+release 52.0.0
   - remove logger role, which is no longer in use
   - remove reference builder, which was moved to a different git package
   - delete unused test data
+  - move from Travis CI to GitHub Actions
+  - fix sort in t/10-seqchksum_merge.t to alleviate differences in locales 
 
 release 51.3.1
   -  use GD dev package name that works for Travis CI
