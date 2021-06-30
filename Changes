@@ -1,5 +1,7 @@
 LIST OF CHANGES
 
+  - add bwa_mem2 as a tool in software_location
+
 release 52.0.0
   - remove logger role, which is no longer in use
   - remove reference builder, which was moved to a different git package
