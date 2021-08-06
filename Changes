@@ -1,5 +1,8 @@
 LIST OF CHANGES
 
+release 52.1.0
+  - added GATK version support to npg_common::roles::software_location
+
 release 52.0.0
   - remove logger role, which is no longer in use
   - remove reference builder, which was moved to a different git package
