@@ -73,21 +73,25 @@ sub current_version {
 
     croak 'Tool command required as argument' if !$cmd;
     croak "'$cmd' not found" if !-e $cmd;
+
     my $version;
     if ($cmd =~ /[.]jar$/smx) {
         $cmd = join q[ ], $self->java_cmd, q[-Xmx64m], q[-jar], $cmd, q[--version];
-        $version = _get_jar_version($cmd);
+        my $jar_regex = qr/^(\d.+)\s*$/ixms;
+        $version = _run_version_command($cmd, $jar_regex);
+    } elsif ($cmd =~ /gatk$/ismx) {
+        # GATK does not follow either Java or other conventions for versioning
+        ## no critic (RequireExtendedFormatting)
+        my $gatk_regex = qr/The Genome Analysis Toolkit [(]GATK[)] v([.\d]+)/ms;
+        $version = _run_version_command("$cmd --version", $gatk_regex);
     } else {
-        my $regex = qr{^(?: $cmd )? \s*
-                       version [:]? \s+
-                       (\S+ (?: [ \t]+ \S+ )? )
-                      }imsx;
+        my $tool_regex = qr{
+          ^(?: $cmd )? \s*
+          version [:]? \s+
+          (\S+ (?: [ \t]+ \S+ )? )
+        }xims;
         foreach my $arg ( q{}, '--version', '-v', '-V', 'version' ) {
-            my $out;
-            my $pid = open3( undef, $out, $out, "$cmd $arg" );
-            waitpid $pid, 0;
-            my $output = slurp($out);
-            ($version) = $output =~ m/$regex/igmsx;
+            $version = _run_version_command($cmd . " $arg", $tool_regex);
             last if defined $version;
         }
         if (not defined $version) { # fallback to pulling version from path
@@ -102,20 +106,15 @@ sub current_version {
     return $version;
 }
 
-sub _get_jar_version {
-    my $cmd = shift;
+sub _run_version_command {
+    my ($cmd, $regex) = @_;
     my $out;
-    my $pid = open3( undef, $out, $out, $cmd);
+    my $version;
+
+    my $pid = open3( undef, $out, $out, $cmd );
     waitpid $pid, 0;
-    my $version = slurp($out);
-    ##no critic (ErrorHandling::RequireCarping)
-    warn qq[Version string for command '$cmd': $version\b];
-    ##use critic
-    if ($version !~ /^\d+/smx) {
-        return;
-    } else {
-        $version =~ s/\s$//gsmx;
-    }
+    my $output = slurp($out);
+    ($version) = $output =~ m/$regex/gmsx;
     return $version;
 }
 
@@ -156,7 +155,7 @@ Specifying the tools
     { tools => [qw/samtools my_tool/] };
 
   $self->samtools_cmd(); #OK
-  $seld->my_tool_cmd();  #OK  
+  $seld->my_tool_cmd();  #OK
 
 =head1 DESCRIPTION
 
@@ -172,9 +171,9 @@ the commands for tools in this array are available.
 
 samtools command resolved to an absolute path to an executable;
 defaults to "samtools" found on the path
- 
+
 =head2 samtools_irods_cmd
- 
+
 samtools_irods command resolved to an absolute path to an executable;
 defaults to "samtools_irods" found on the path
 
@@ -265,7 +264,7 @@ Please contact the author with any found.
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2018 Genome Research Ltd
+Copyright (C) 2018, 2021 Genome Research Ltd
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
