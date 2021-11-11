@@ -1,5 +1,6 @@
 LIST OF CHANGES
 
+release 52.1.1
   - Make the npg_mail_cron_output find Perl libraries if they are deployed
     in the lib or lib/perl5 directory parallel to the bin directory. Currently
     the script, which is only used in crontabs, fails unless PERL5LIB is
