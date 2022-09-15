@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 101;
+use Test::More tests => 103;
 use Test::Exception;
 use Cwd qw(cwd);
 use File::Temp qw(tempdir);
@@ -73,30 +73,30 @@ my ($abs_path, $software);
     foreach my $tool ( @tools ) {
 
         my $method = "${tool}_cmd";
-        
+
         throws_ok {$software->$method}
             qr/no '$tool' executable is on the path/,
             "error when $tool is not on the path";
-        
+
         if ($tool ne 'bwa') {
           system "echo 'mock $tool' > $temp_dir/$tool";
           chmod 0755, "$temp_dir/$tool";
         } else {
           symlink "bwa0_6", "$temp_dir/bwa" or die 'cannot symlink';
         }
-        
+
         $abs_path = abs_path(catfile($temp_dir, $tool));
-        lives_ok {$software->$method} 
+        lives_ok {$software->$method}
             "no error when $tool is on the path and is executable";
         is ($software->$method, $abs_path, "returns correct absolute path to $tool");
         lives_ok {$software = _obj($method => qq[$tool]) }
             "$tool is on the path, no error setting it as '$tool'";
         is ($software->$method, $abs_path, "returns correct absolute path");
-        
+
         if ($tool ne 'bwa') {
             chmod 0644, "$temp_dir/$tool";
-            throws_ok { _obj($method => qq[$tool]) } 
-              qr/no '$tool' executable is on the path/, 
+            throws_ok { _obj($method => qq[$tool]) }
+              qr/no '$tool' executable is on the path/,
               "error when $tool does exists on the path but is not executable";
             chmod 0755, "$temp_dir/$tool";
         }
@@ -146,12 +146,12 @@ my ($abs_path, $software);
     my $test_java = 't/data/java';
     my $abs_test_java = abs_path($test_java);
 
-    is (_obj(java_cmd => $test_java)->java_cmd, $abs_test_java, 
-    'a full path to test java command when a relative path is given');  
+    is (_obj(java_cmd => $test_java)->java_cmd, $abs_test_java,
+    'a full path to test java command when a relative path is given');
 
     local $ENV{PATH} = join q[:], 't/data', $ENV{PATH};
-    is (_obj()->java_cmd, $abs_test_java, 
-    'a full path to test java command when it is on the path');   
+    is (_obj()->java_cmd, $abs_test_java,
+    'a full path to test java command when it is on the path');
 }
 
 { # testing find jar location
@@ -161,28 +161,28 @@ my ($abs_path, $software);
     `touch $temp_dir/jar_path/MyOtherJar.jar`;
 
     local $ENV{CLASSPATH} = q[/tmp];
-    lives_ok { $obj = class_with_lazy_jar->new()} 
+    lives_ok { $obj = class_with_lazy_jar->new()}
          q[build lazy object without specified jar accessor];
-    throws_ok { $obj->jar( )} 
-         qr/no such file on CLASSPATH: MyJar.jar/, 
-         q[lazy build of jar fails when jar not on the classpath];    
-    throws_ok { $obj->jar( 'MyJar.jar' )} 
-         qr/no such file on CLASSPATH: MyJar.jar/, 
-         q[setting jar fails when jar not on the classpath];    
+    throws_ok { $obj->jar( )}
+         qr/no such file on CLASSPATH: MyJar.jar/,
+         q[lazy build of jar fails when jar not on the classpath];
+    throws_ok { $obj->jar( 'MyJar.jar' )}
+         qr/no such file on CLASSPATH: MyJar.jar/,
+         q[setting jar fails when jar not on the classpath];
     throws_ok { class_with_lazy_jar->new( jar => 'MyJar.jar',) }
          qr/no such file on CLASSPATH: MyJar.jar/,
          q[build fails with jar accessor specified and jar not on the classpath];
 
     local $ENV{CLASSPATH} = qq[$temp_dir/jar_path];
-    lives_ok { $obj->jar( ) } 
+    lives_ok { $obj->jar( ) }
          q[lazy build of jar succeeds with jar on the classpath];
-    is( $obj->jar(), qq[$temp_dir/jar_path/MyJar.jar], 
-         q[correct jar MyJar.jar] ); 
-    lives_ok { $obj->jar( 'MyOtherJar.jar') } 
+    is( $obj->jar(), qq[$temp_dir/jar_path/MyJar.jar],
+         q[correct jar MyJar.jar] );
+    lives_ok { $obj->jar( 'MyOtherJar.jar') }
          q[setting other jar succeeds with jar on the classpath];
-    is( $obj->jar(), qq[$temp_dir/jar_path/MyOtherJar.jar], 
-         q[correct jar MyOtherJar.jar] ); 
-    lives_ok { class_with_lazy_jar->new( jar => 'MyJar.jar',)} 
+    is( $obj->jar(), qq[$temp_dir/jar_path/MyOtherJar.jar],
+         q[correct jar MyOtherJar.jar] );
+    lives_ok { class_with_lazy_jar->new( jar => 'MyJar.jar',)}
          q[build object with specified jar accesser and jar is on the classpath];
 
     lives_ok { $software = class_with_default_jar->new() }
@@ -191,17 +191,17 @@ my ($abs_path, $software);
 
     local $ENV{CLASSPATH} = q[/tmp];
     throws_ok { class_with_default_jar->new()}
-         qr/no such file on CLASSPATH: MyJar.jar/, 
+         qr/no such file on CLASSPATH: MyJar.jar/,
          q[build fails with default jar not on the classpath];
 
     my $cwd = cwd;
     chdir($temp_dir);
-    lives_ok { $software = class_with_default_jar->new( 
+    lives_ok { $software = class_with_default_jar->new(
                                  jar => abs_path(q[jar_path/MyJar.jar]),);
              } q[build succeeds with absolute path to jar];
     is ($software->jar(), qq[$temp_dir/jar_path/MyJar.jar], q[correct absolute path]);
 
-    lives_ok { $software = class_with_default_jar->new( 
+    lives_ok { $software = class_with_default_jar->new(
                                  jar => q[jar_path/MyJar.jar],);
              } q[build succeeds with relative path to jar];
     is ($software->jar(), qq[$temp_dir/jar_path/MyJar.jar], q[correct absolute path]);
@@ -212,7 +212,7 @@ my ($abs_path, $software);
                q[fail with jar by name only and jar in current directory, but not on the classpath];
 
     local $ENV{CLASSPATH} = qq[$temp_dir/jar_path];
-    throws_ok { $software = class_with_default_jar->new( 
+    throws_ok { $software = class_with_default_jar->new(
                                  jar => q[/tmp/jar_path/MyJar.jar],
                            ); }
               qr[/tmp/jar_path/MyJar.jar' is an invalid path],
@@ -276,6 +276,17 @@ my ($abs_path, $software);
     close $fh;
     chmod 755, $file;
     is ($obj->some_test_tool_cmd(), $file, 'tool found');
+
+    # Specific test for GATK
+
+    local $ENV{PATH} = qq[t/bin];
+    $obj = Moose::Meta::Class->create_anon_class(
+        roles => ['npg_common::roles::software_location' => { tools => [qw/gatk/] }],
+    )->new_object();
+    ok($obj->can('gatk_cmd'), 'Fake GATK exists');
+    my $binary = $obj->gatk_cmd;
+    is ($obj->current_version($binary), '4.1.3.0', 'GATK version correctly read');
+
 }
 
 1;

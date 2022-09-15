@@ -1,10 +1,9 @@
 #!/usr/bin/env perl
-#########
-# Author:        Marina Gourtovaia
-#
 
 use strict;
 use warnings;
+use FindBin qw($Bin);
+use lib ( -d "$Bin/../lib/perl5" ? "$Bin/../lib/perl5" : "$Bin/../lib" );
 use English qw(-no_match_vars);
 use MIME::Lite;
 use Getopt::Long;
@@ -46,11 +45,11 @@ chomp $cron_output;
 if ($cron_output) {
   my @emails =  @{$to};
   my $msg = MIME::Lite->new(
-			  To            => pop @emails,
-                          Cc            => join(q[, ], @emails),
-			  Subject       => $subject,
-			  Type          => 'TEXT',
-			  Data          => $cron_output,
+    To            => pop @emails,
+    Cc            => join(q[, ], @emails),
+    Subject       => $subject,
+    Type          => 'TEXT',
+    Data          => $cron_output,
   );
 
   eval {
@@ -99,6 +98,8 @@ npg_mail_cron_output
 
 =item warnings
 
+=item FindBin
+
 =item Carp
 
 =item English
@@ -119,7 +120,7 @@ Marina Gourtovaia
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2012 GRL
+Copyright (C) 2012,2021 Genome Research Ltd
 
 This file is part of NPG.
 

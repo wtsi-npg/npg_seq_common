@@ -1,6 +1,15 @@
 LIST OF CHANGES
 
   - add bwa_mem2 as a tool in software_location
+  
+release 52.1.1
+  - Make the npg_mail_cron_output find Perl libraries if they are deployed
+    in the lib or lib/perl5 directory parallel to the bin directory. Currently
+    the script, which is only used in crontabs, fails unless PERL5LIB is
+    explicitly set in the environment.
+
+release 52.1.0
+  - added GATK version support to npg_common::roles::software_location
 
 release 52.0.0
   - remove logger role, which is no longer in use
