@@ -12,13 +12,13 @@ jobs:
 
     name: Distribution Perl
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: '0' 
 
     - name: Cache conda
       id: minicondaCache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           ~/conda/pkgs
