@@ -14,7 +14,7 @@ use npg_tracking::util::abs_path qw(abs_path);
 
 our $VERSION = '0';
 
-Readonly::Array my @TOOLS => qw/bwa bwa0_6 samtools samtools_irods bowtie java star minimap2 hisat2/;
+Readonly::Array my @TOOLS => qw/bwa bwa0_6 bwa_mem2 samtools samtools_irods bowtie java star minimap2 hisat2/;
 
 subtype 'NpgCommonResolvedPathExecutable'
       => where { ((abs_path($_) || q[]) eq $_) && ( -x ) },
