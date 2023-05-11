@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 103;
+use Test::More tests => 116;
 use Test::Exception;
 use Cwd qw(cwd);
 use File::Temp qw(tempdir);
@@ -28,7 +28,7 @@ has 'jar' => ( is   => 'rw',isa  => 'NpgCommonResolvedPathJarFile',
 
 package main;
 
-my @tools = qw/bwa0_6 samtools samtools_irods bowtie bwa/;
+my @tools = qw/bwa0_6 bwa_mem2 samtools samtools_irods bowtie bwa/;
 
 my $temp_dir = tempdir(CLEANUP => 1);
 
