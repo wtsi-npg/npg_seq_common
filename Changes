@@ -1,5 +1,9 @@
 LIST OF CHANGES
 
+release 52.2.1
+  - Dropped redundant CI build CPAN dependencies
+  - Switch to Perlbrew to obtain multiple Perl versions
+
 release 52.2.0
   - add bwa_mem2 as a tool in software_location
   
