@@ -1,4 +1,3 @@
-.github/workflows/testing_and_building_repo.yml
 bin/npg_mail_cron_output
 bin/seqchksum_merge.pl
 Build.PL
@@ -9,9 +8,6 @@ lib/npg_common/roles/SequenceInfo.pm
 lib/npg_common/roles/software_location.pm
 MANIFEST
 README
-scripts/before_install.sh
-scripts/install_perl_deps.sh
-scripts/script.sh
 t/00-critic.t
 t/00-distribution.t
 t/00-pod.t
