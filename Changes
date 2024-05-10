@@ -1,5 +1,7 @@
 LIST OF CHANGES
 
+  - Removing Tidyp dependency from CI
+
 release 52.2.2
   - Removed from MANIFEST previously deleted files
 
