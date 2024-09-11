@@ -1,5 +1,13 @@
 LIST OF CHANGES
 
+ - Following a release on 07/09/2024, see https://metacpan.org/dist/App-perlbrew/changes
+   the checksum of the script served by https://install.perlbrew.pl had changed.
+   https://install.perlbrew.pl is a redirect to raw
+   https://github.com/gugod/App-perlbrew/blob/master/perlbrew-install, so
+   the change originates from GitHub and can be trusted. Our CI flow compares
+   the checksum of the downloaded script to the expected value. We now store
+   an updated expected checksum value, which corresponds to the latest release.
+
 release 52.2.3 (2024-05-24)
   - Removing Tidyp dependency from CI
 
@@ -1082,4 +1090,3 @@ release 1.0
  - created heatmap module for illumina chips
  - created scale module for producing scale image with limits on it
  - tests for heatmap and scale
-
