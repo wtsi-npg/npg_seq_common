@@ -1,5 +1,8 @@
 LIST OF CHANGES
 
+release 52.2.5 (2024-11-29)
+ - replace miniconda with miniforge for CI
+
 release 52.2.4 (2024-10-04)
  - Added .github/dependabot.yml file to auto-update GitHub actions
  - Following a release on 07/09/2024, see https://metacpan.org/dist/App-perlbrew/changes
