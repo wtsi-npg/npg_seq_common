@@ -1,5 +1,8 @@
 LIST OF CHANGES
 
+release 52.2.6 (2024-12-11)
+ - Fix URL to use Miniforge rather than Mambaforge
+
 release 52.2.5 (2024-11-29)
  - replace miniconda with miniforge for CI
 
