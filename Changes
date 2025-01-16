@@ -1,5 +1,9 @@
 LIST OF CHANGES
 
+release 52.2.7 (2025-01-16)
+ - Fixed perlbrew installation by installing libdevel-patchperl-perl in
+   GitHub runner.
+
 release 52.2.6 (2024-12-11)
  - Fix URL to use Miniforge rather than Mambaforge
 
