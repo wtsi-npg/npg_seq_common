@@ -1,5 +1,8 @@
 LIST OF CHANGES
 
+release 52.2.8 (2025-11-12)
+ - CI updates
+
 release 52.2.7 (2025-01-16)
  - Fixed perlbrew installation by installing libdevel-patchperl-perl in
    GitHub runner.
