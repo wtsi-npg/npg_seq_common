@@ -1,6 +1,8 @@
 LIST OF CHANGES
 
+release 52.2.9 (2026-04-16)
  - Update matrix of CI perl versions, remove 5.26.3 and add 5.38.2
+ - CI updates
 
 release 52.2.8 (2025-11-12)
  - CI updates
