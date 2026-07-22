@@ -24,7 +24,7 @@ jobs:
         perl: ["5.34.1", "5.38.2"]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: '0'
 
@@ -43,7 +43,7 @@ jobs:
 
       - name: "Cache Conda"
         id: miniforgeCache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ${{ env.CONDA_HOME }}/pkgs
@@ -64,7 +64,7 @@ jobs:
 
       - name: "Cache Perl"
         id: cache-perl
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.PERL_CACHE }}
           key: ${{ runner.os }}-${{ matrix.perl }}-perl
